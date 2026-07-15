@@ -39,7 +39,7 @@ const EASY_ERRORS: GameError[] = [
   { id: 'err-5', description: 'Wrong primary button color', points: 100, fixed: false, errorClass: 'bg-blue-400', fixedClass: 'bg-blue-600' },
 ];
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>((set) => ({
   isPlaying: false,
   isGameOver: false,
   isVictory: false,

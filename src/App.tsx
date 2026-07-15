@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Search, Moon, Sun, CheckCircle, XCircle, Award, ShieldAlert, Target } from 'lucide-react';
+import { Search, Moon, Sun, CheckCircle, XCircle, Award, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -240,7 +240,7 @@ function StartScreen() {
 }
 
 function EndScreen({ isVictory }: { isVictory: boolean }) {
-  const { xp, attemptsLeft, timeLeft, resetGame } = useGameStore();
+  const { xp, timeLeft, resetGame } = useGameStore();
   const timeOut = timeLeft <= 0;
 
   return (
@@ -294,7 +294,7 @@ export default function App() {
   const [magnifier, setMagnifier] = useState(false);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isPlaying && !isGameOver && !isVictory) {
       interval = setInterval(() => {
         tick();
