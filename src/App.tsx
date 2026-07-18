@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(ScrollTrigger);
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -86,7 +89,7 @@ function HUD() {
 }
 
 function MistakeElement({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
-  const { errors, fixError } = useGameStore();
+  const { errors, fixError, hintTargetId } = useGameStore();
   const errorDef = errors.find(e => e.id === id);
   const isFixed = errorDef?.fixed;
 
@@ -100,28 +103,39 @@ function MistakeElement({ id, children, className }: { id: string, children: Rea
   if (!errorDef) return <>{children}</>;
 
   const currentClass = isFixed ? errorDef.fixedClass : errorDef.errorClass;
+  const isSingleElement = React.Children.count(children) === 1 && React.isValidElement(children);
+
+  const wrapperClass = cn(
+    "relative transition-all duration-300", 
+    !isFixed && "mistake-target hover:scale-[1.05] hover:rotate-1 hover:shadow-2xl hover:z-50 duration-300 transition-all",
+    !isFixed && hintTargetId === id && "ring-4 ring-[#f59e0b] shadow-[0_0_30px_#f59e0b] animate-pulse z-50",
+    className,
+    !isSingleElement && currentClass
+  );
+
+  const renderedChildren = isSingleElement 
+    ? React.cloneElement(children as React.ReactElement, {
+        className: cn((children as React.ReactElement<any>).props.className, currentClass)
+      } as any)
+    : children;
 
   return (
     <motion.div
       layout
       onClick={handleClick}
-      className={cn(
-        "relative transition-all duration-300", 
-        !isFixed && "mistake-target hover:scale-[1.05] hover:rotate-1 hover:shadow-2xl hover:z-50 duration-300 transition-all",
-        className,
-        currentClass
-      )}
+      className={wrapperClass}
       animate={isFixed ? { scale: [1, 1.05, 1], filter: ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] } : {}}
       transition={{ duration: 0.4 }}
     >
-      {children}
+      {renderedChildren}
       {isFixed && (
         <motion.div 
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="absolute -top-3 -right-3 bg-[#06b6d4] text-black text-xs font-mono font-bold px-2 py-1 z-10 border border-black shadow-[0_0_15px_#06b6d4]"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute -top-10 -right-4 bg-[#06b6d4] text-black text-xs font-mono font-bold px-3 py-2 z-[60] border border-black shadow-[0_0_15px_#06b6d4] flex flex-col items-center"
         >
-          FIXED
+          <span>FIXED</span>
+          <span className="text-[9px] mt-1 opacity-80 whitespace-nowrap">{errorDef.description}</span>
         </motion.div>
       )}
     </motion.div>
@@ -129,7 +143,7 @@ function MistakeElement({ id, children, className }: { id: string, children: Rea
 }
 
 function SaasLayout() {
-  const { missClick, isPlaying } = useGameStore();
+  const { missClick, isPlaying, errors } = useGameStore();
 
   const handlePageClick = () => {
     if (isPlaying) {
@@ -144,7 +158,7 @@ function SaasLayout() {
       <div className="relative w-full max-w-5xl bracket-corner p-2">
         <div className="absolute -top-6 left-4 text-[#10b981] font-mono text-xs flex items-center space-x-2">
           <Maximize2 className="w-3 h-3" />
-          <span>TARGET_UI_RENDER // SECTOR 7G</span>
+          <span>CSS GRID // VIEWPORT 1</span>
         </div>
         
         <div className="glass-panel p-10 bg-slate-900/60 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2">
@@ -155,26 +169,26 @@ function SaasLayout() {
               <span>SYSTEM ONLINE</span>
             </motion.div>
             
-            <MistakeElement id="err-4" className="mb-6">
+            <MistakeElement id={errors[3]?.id || 'err-4'} className="mb-6">
               <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                Secure the grid.
+                Perfect the layout.
               </h1>
             </MistakeElement>
             
             <p className="text-lg text-[#e5e1e4]/70 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Detect anomalies in the neural net interface. Ensure all components meet the strict visual regulations of the megacorp.
+              Detect anomalies in the Document Object Model. Ensure all components meet the strict visual guidelines of modern web design.
             </p>
             
             <div className="flex items-center justify-center space-x-6">
-              <MistakeElement id="err-1">
+              <MistakeElement id={errors[0]?.id || 'err-1'}>
                 <button className="bg-gradient-to-r from-[#f59e0b] to-[#6366f1] text-white font-bold font-mono tracking-widest shadow-[0_0_15px_#6366f1] hover:shadow-[0_0_25px_#f59e0b] transition-all cursor-crosshair border-none">
-                  INITIALIZE
+                  DEPLOY
                 </button>
               </MistakeElement>
               
-              <MistakeElement id="err-5">
+              <MistakeElement id={errors[4]?.id || 'err-5'}>
                 <button className="font-mono tracking-widest text-[#10b981] border border-[#10b981]/50 hover:bg-[#10b981]/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#10b981]/20 duration-300 transition-all transition-all cursor-crosshair px-6 py-3 shadow-[0_0_10px_rgba(255,170,0,0.1)]">
-                  ACCESS LOGS
+                  VIEW CONSOLE
                 </button>
               </MistakeElement>
             </div>
@@ -182,16 +196,16 @@ function SaasLayout() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
             {[1, 2, 3].map((i) => (
-              <MistakeElement id={i === 2 ? 'err-3' : `no-err-${i}`} key={i} className={i !== 2 ? 'rounded-none' : ''}>
+              <MistakeElement id={i === 2 ? (errors[2]?.id || 'err-3') : `no-err-${i}`} key={i} className={i !== 2 ? 'rounded-none' : ''}>
                 <div className="bg-[#06050b]/60 border border-[#6366f1]/30 p-6 h-full backdrop-blur-md group hover:border-[#f43f5e] hover:-translate-y-3 hover:shadow-2xl duration-300 transition-all transition-colors shadow-lg">
-                  <MistakeElement id={i === 1 ? 'err-2' : `no-icon-err-${i}`}>
+                  <MistakeElement id={i === 1 ? (errors[1]?.id || 'err-2') : `no-icon-err-${i}`}>
                     <div className="w-10 h-10 bg-[#10b981]/10 text-[#10b981] flex items-center justify-center mb-5 border border-[#10b981]/40 group-hover:bg-[#f43f5e]/20 group-hover:text-[#f43f5e] transition-colors">
                       <ShieldAlert className="w-5 h-5" />
                     </div>
                   </MistakeElement>
-                  <h3 className="text-lg font-bold mb-2 text-white group-hover:text-[#f59e0b] transition-colors">Data Encryption</h3>
+                  <h3 className="text-lg font-bold mb-2 text-white group-hover:text-[#f59e0b] transition-colors">Component State</h3>
                   <p className="text-[#e5e1e4]/60 text-sm leading-relaxed font-mono">
-                    Advanced quantum protection for all nodes. Anomalies are isolated and purged upon detection.
+                    Advanced React lifecycle protection. Re-renders are isolated and optimized for maximum framerate.
                   </p>
                 </div>
               </MistakeElement>
@@ -203,6 +217,164 @@ function SaasLayout() {
     </div>
   );
 }
+
+function MediumLayout() {
+  const { missClick, isPlaying, errors } = useGameStore();
+  const handlePageClick = () => { if (isPlaying) missClick(); };
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6 flex justify-center items-center" onClick={handlePageClick}>
+      <div className="relative w-full max-w-5xl bracket-corner p-2">
+        <div className="absolute -top-6 left-4 text-[#10b981] font-mono text-xs flex items-center space-x-2">
+          <ShoppingCart className="w-3 h-3" />
+          <span>E-COMMERCE // PRODUCT RENDER</span>
+        </div>
+        <div className="glass-panel p-10 bg-slate-900/60 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2">
+          <div className="flex flex-col md:flex-row gap-12 relative z-10">
+            <MistakeElement id={errors[0]?.id || 'med-err-1'} className="w-full md:w-1/2 flex items-center justify-center bg-black/40 border border-[#6366f1]/30 p-8 min-h-[400px]">
+              <div className="w-64 h-64 bg-gradient-to-tr from-[#6366f1] to-[#f43f5e] rounded-full blur-3xl opacity-20 absolute" />
+              <img src="/club-logo.svg" className="w-48 h-48 object-contain relative z-10 drop-shadow-[0_0_20px_rgba(99,102,241,0.5)]" alt="Product" />
+            </MistakeElement>
+            <div className="w-full md:w-1/2 flex flex-col justify-center">
+              <MistakeElement id={errors[3]?.id || 'med-err-4'} className="relative">
+                <div className="inline-flex items-center space-x-1 text-[#f59e0b] mb-4">
+                  {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-current" />)}
+                  <span className="text-white/50 text-xs ml-2 font-mono">(128 reviews)</span>
+                </div>
+              </MistakeElement>
+              <MistakeElement id={errors[2]?.id || 'med-err-3'}>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 uppercase">Neural Interface V.4</h1>
+              </MistakeElement>
+              <p className="text-[#e5e1e4]/70 mb-8 font-mono text-sm leading-relaxed">Direct brain-to-machine connectivity module. Increases typing speed by 400% through synaptic prediction algorithms.</p>
+              <div className="text-3xl font-bold text-[#10b981] mb-8 font-mono">2,499 CR</div>
+              <div className="flex space-x-4">
+                <MistakeElement id={errors[1]?.id || 'med-err-2'}>
+                  <button className="bg-[#6366f1] hover:bg-[#4f46e5] text-white font-bold px-8 py-4 uppercase tracking-widest font-mono">Add to Cart</button>
+                </MistakeElement>
+                <MistakeElement id={errors[4]?.id || 'med-err-5'}>
+                  <button className="border border-[#f43f5e] text-[#f43f5e] hover:bg-[#f43f5e]/10 font-bold px-8 py-4 uppercase tracking-widest font-mono bg-gradient-to-r from-[#f43f5e]/5">Wishlist</button>
+                </MistakeElement>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HardLayout() {
+  const { missClick, isPlaying, errors } = useGameStore();
+  const handlePageClick = () => { if (isPlaying) missClick(); };
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6 flex justify-center items-center" onClick={handlePageClick}>
+      <div className="relative w-full max-w-6xl bracket-corner p-2">
+        <div className="absolute -top-6 left-4 text-[#f59e0b] font-mono text-xs flex items-center space-x-2">
+          <BarChart2 className="w-3 h-3" />
+          <span>DATA_ANALYTICS // DASHBOARD</span>
+        </div>
+        <div className="glass-panel bg-slate-900/60 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2 flex flex-col md:flex-row">
+          <MistakeElement id={errors[0]?.id || 'hard-err-1'} className="w-full md:w-64 border-r border-[#6366f1]/30 p-6 flex flex-col space-y-6">
+            <div className="text-[#6366f1] font-black tracking-widest text-xl mb-8">NEXUS_OS</div>
+            <div className="space-y-4 font-mono text-sm uppercase tracking-widest text-white/50">
+              <div className="flex items-center space-x-3 text-white bg-[#6366f1]/20 p-2 rounded"><Activity className="w-4 h-4 text-[#6366f1]" /><span>Overview</span></div>
+              <div className="flex items-center space-x-3 hover:text-white transition-colors p-2"><Users className="w-4 h-4" /><span>Users</span></div>
+              <div className="flex items-center space-x-3 hover:text-white transition-colors p-2"><Settings className="w-4 h-4" /><span>Config</span></div>
+            </div>
+          </MistakeElement>
+          <div className="flex-1 p-8">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl font-bold text-white uppercase">System Metrics</h2>
+              <MistakeElement id={errors[4]?.id || 'hard-err-5'} className="w-32 h-10 border border-white/20 bg-black/40 flex items-center px-4 text-xs font-mono text-white/50">
+                Last 24 Hours
+              </MistakeElement>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              {[
+                { label: 'Active Nodes', val: '8,249', color: 'text-[#10b981]' },
+                { label: 'Data Transfer', val: '4.2 PB', color: 'text-[#6366f1]' },
+                { label: 'Threats Detected', val: '0', color: 'text-[#f59e0b]' }
+              ].map((stat, i) => (
+                <MistakeElement key={i} id={i === 1 ? (errors[2]?.id || 'hard-err-3') : `no-err-stat-${i}`} className="bg-black/50 border border-white/10 p-6">
+                  <div className="text-xs font-mono uppercase tracking-widest text-white/40 mb-2">{stat.label}</div>
+                  <div className={`${stat.color} text-4xl font-black`}>{stat.val}</div>
+                </MistakeElement>
+              ))}
+            </div>
+            <MistakeElement id={errors[1]?.id || 'hard-err-2'} className="w-full h-64 bg-black/50 border border-[#6366f1]/30 relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoOTksIDEwMiwgMjQxLCAwLjIpIi8+PC9zdmc+')] opacity-50" />
+              <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#6366f1]/20 to-transparent" />
+              <MistakeElement id={errors[3]?.id || 'hard-err-4'} className="absolute bottom-8 left-8 right-8 h-px bg-white/20">
+                <div className="absolute -top-1.5 left-1/4 w-3 h-3 bg-[#f43f5e] rounded-full shadow-[0_0_10px_#f43f5e]" />
+                <div className="absolute -top-1.5 left-1/2 w-3 h-3 bg-[#10b981] rounded-full shadow-[0_0_10px_#10b981]" />
+                <div className="absolute -top-1.5 right-1/4 w-3 h-3 bg-[#f59e0b] rounded-full shadow-[0_0_10px_#f59e0b]" />
+              </MistakeElement>
+            </MistakeElement>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NightmareLayout() {
+  const { missClick, isPlaying, errors } = useGameStore();
+  const handlePageClick = () => { if (isPlaying) missClick(); };
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6 flex justify-center items-center" onClick={handlePageClick}>
+      <div className="relative w-full max-w-4xl bracket-corner p-2">
+        <div className="absolute -top-6 left-4 text-[#f43f5e] font-mono text-xs flex items-center space-x-2">
+          <Settings className="w-3 h-3 animate-spin" />
+          <span>USER_PREFERENCES // ROOT_ACCESS</span>
+        </div>
+        <div className="glass-panel p-10 bg-slate-900/80 shadow-[0_0_50px_rgba(244,63,94,0.3)] relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2">
+          <div className="flex items-center space-x-8 mb-12 border-b border-white/10 pb-8">
+            <MistakeElement id={errors[0]?.id || 'night-err-1'} className="w-24 h-24 bg-black border-2 border-[#f43f5e] flex items-center justify-center relative overflow-hidden group">
+              <User className="w-12 h-12 text-[#f43f5e]" />
+              <div className="absolute inset-0 bg-[#f43f5e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-[8px] font-mono uppercase text-white font-bold">Upload</span>
+              </div>
+            </MistakeElement>
+            <div>
+              <h2 className="text-3xl font-black text-white uppercase tracking-wider">Administrator</h2>
+              <div className="text-[#f59e0b] font-mono text-sm uppercase tracking-widest mt-1">Access Level: Maximum</div>
+            </div>
+          </div>
+          
+          <div className="space-y-8">
+            {[
+              { title: 'Enable Telemetry', desc: 'Send anonymous usage data to central command.', id: 1 },
+              { title: 'Auto-Purge Logs', desc: 'Clear system logs every 24 hours to save memory.', id: 2 },
+              { title: 'Override Protocols', desc: 'Bypass safety checks on unverified code execution.', id: 3 }
+            ].map((setting, i) => (
+              <MistakeElement key={i} id={i === 1 ? (errors[4]?.id || 'night-err-5') : `no-err-set-${i}`} className="flex items-start justify-between p-4 bg-black/40 border border-white/5 hover:border-white/20 transition-colors">
+                <div className="pr-8">
+                  <MistakeElement id={i === 0 ? (errors[2]?.id || 'night-err-3') : `no-err-txt-${i}`}>
+                    <h3 className="text-lg font-bold text-white mb-1 uppercase">{setting.title}</h3>
+                  </MistakeElement>
+                  <p className="text-white/50 text-sm font-mono">{setting.desc}</p>
+                </div>
+                <div className="w-12 h-6 bg-white/10 rounded-full relative cursor-pointer border border-white/20">
+                  <div className="w-4 h-4 bg-white/50 rounded-full absolute top-1 left-1" />
+                </div>
+              </MistakeElement>
+            ))}
+          </div>
+          
+          <div className="mt-12 pt-8 border-t border-white/10 flex justify-end space-x-4">
+            <MistakeElement id={errors[3]?.id || 'night-err-4'}>
+              <button className="px-6 py-3 font-mono text-sm uppercase tracking-widest text-white/50 hover:text-white transition-colors">Cancel</button>
+            </MistakeElement>
+            <MistakeElement id={errors[1]?.id || 'night-err-2'}>
+              <button className="bg-[#f43f5e] hover:bg-red-600 text-white font-bold px-8 py-3 uppercase tracking-widest font-mono shadow-[0_0_20px_rgba(244,63,94,0.4)]">Save Changes</button>
+            </MistakeElement>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(1);
@@ -289,88 +461,270 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
   const container = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
-    gsap.to('.marquee-top', {
-      xPercent: -50,
-      repeat: -1,
-      duration: 20,
-      ease: "linear",
+    gsap.to('.hero-text', {
+      y: 0,
+      opacity: 1,
+      duration: 1.2,
+      stagger: 0.2,
+      ease: "power4.out"
     });
-    gsap.to('.marquee-bottom', {
-      xPercent: -50,
-      repeat: -1,
-      duration: 25,
-      ease: "linear",
-    });
+
+    const scrollEl = document.querySelector('.horizontal-scroll') as HTMLElement;
+    if (scrollEl) {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '.sticky-container',
+          start: "top top",
+          end: "+=4000",
+          scrub: 1,
+          pin: true
+        }
+      });
+
+      tl.to('.horizontal-scroll', {
+        x: () => -(scrollEl.scrollWidth - window.innerWidth),
+        ease: "none",
+        duration: 2
+      });
+
+      tl.to({}, { duration: 1 });
+    }
   }, { scope: container });
 
   return (
-    <div ref={container} className="min-h-screen flex flex-col items-center justify-center relative bg-gradient-to-br from-blue-950 via-cyan-900 to-teal-950 p-6 crt-flicker overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-[#f59e0b]/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[#6366f1]/10 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#10b981]/5 rounded-full blur-[120px]" />
+    <div ref={container} className="relative selection:bg-indigo-500/30 selection:text-indigo-900 bg-slate-50 text-slate-900 w-full min-h-screen z-50">
+      
+      {/* Light Animated Backgrounds */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 40%), radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.15), transparent 40%), radial-gradient(circle at 50% 80%, rgba(168, 85, 247, 0.15), transparent 40%)'
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: 'linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px)',
+        backgroundSize: '50px 50px',
+        maskImage: 'radial-gradient(circle at 50% 50%, black 40%, transparent 80%)'
+      }} />
+
+      {/* Hero Section */}
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
         
-        {/* GSAP Rolling Text Background */}
-        <div className="absolute top-10 left-0 w-[200%] flex whitespace-nowrap text-[#f59e0b]/10 font-black text-8xl md:text-9xl uppercase tracking-tighter opacity-50 select-none marquee-top">
-          <div className="flex-1">FRONTEND DETECTIVE // SECTOR 7G // ANOMALY DETECTED // SYSTEM COMPROMISED // </div>
-          <div className="flex-1">FRONTEND DETECTIVE // SECTOR 7G // ANOMALY DETECTED // SYSTEM COMPROMISED // </div>
-        </div>
-        
-        <div className="absolute bottom-10 left-0 w-[200%] flex whitespace-nowrap text-[#f43f5e]/10 font-black text-8xl md:text-9xl uppercase tracking-tighter opacity-50 select-none marquee-bottom" style={{ transform: 'rotate(180deg)' }}>
-          <div className="flex-1">SECURITY BREACH // INITIATE PURGE // INTEGRITY COMPROMISED // ACCESS LOGS // </div>
-          <div className="flex-1">SECURITY BREACH // INITIATE PURGE // INTEGRITY COMPROMISED // ACCESS LOGS // </div>
+        {/* Floating Background Developer Badges */}
+        {[
+          { text: "const isFlawless = false;", top: "20%", left: "5%", delay: 0.5, rotate: -10, color: "text-rose-500" },
+          { text: "CSS Object Model", top: "70%", left: "10%", delay: 0.8, rotate: 5, color: "text-indigo-500" },
+          { text: "DOM Integrity: 99%", top: "30%", right: "5%", delay: 0.6, rotate: 15, color: "text-emerald-500" },
+          { text: "<React.StrictMode>", top: "60%", right: "8%", delay: 0.9, rotate: -5, color: "text-sky-500" },
+          { text: "useEffect(() => scan(), [])", top: "85%", left: "40%", delay: 1.1, rotate: 2, color: "text-purple-500" },
+          { text: "z-index: 9999;", top: "15%", right: "30%", delay: 0.7, rotate: -15, color: "text-amber-500" }
+        ].map((badge, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0, y: 50, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ delay: badge.delay, type: "spring", damping: 10 }}
+            className="absolute z-0 hidden md:block"
+            style={{ top: badge.top, left: badge.left, right: badge.right }}
+          >
+            <motion.div
+              animate={{ y: [-5, 5, -5], rotate: [badge.rotate - 2, badge.rotate + 2, badge.rotate - 2] }}
+              transition={{ repeat: Infinity, duration: 4 + i, ease: "easeInOut" }}
+              className={cn("bg-white/60 backdrop-blur-md border border-white/80 font-mono text-xs px-4 py-2 rounded-xl shadow-[0_8px_16px_rgba(0,0,0,0.05)] font-bold", badge.color)}
+            >
+              {badge.text}
+            </motion.div>
+          </motion.div>
+        ))}
+
+        <div className="text-center z-10 w-full max-w-6xl relative">
+          
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+          >
+            <div className="flex flex-col items-center mb-8 pt-20">
+              <motion.div 
+                initial={{ width: 0 }} 
+                animate={{ width: "2px" }} 
+                className="h-16 bg-gradient-to-b from-transparent to-indigo-500 mb-4" 
+                transition={{ duration: 1, delay: 0.2 }}
+              />
+              <div className="inline-flex items-center space-x-2 bg-white/90 border border-indigo-100 shadow-[0_0_20px_rgba(99,102,241,0.2)] rounded-full px-5 py-2 backdrop-blur-md">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                <span className="text-xs font-bold font-mono tracking-widest text-indigo-600 uppercase">System Initialized</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center relative w-full mb-12">
+              <motion.div
+                animate={{ y: [-10, 10, -10], rotate: [-1, 1, -1] }} 
+                transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+                className="self-start md:ml-12"
+              >
+                <motion.h1 
+                  variants={{
+                    hidden: { opacity: 0 },
+                    visible: {
+                      opacity: 1,
+                      transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+                    }
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                  className="text-[7rem] md:text-[12rem] leading-[0.8] font-cursive drop-shadow-[0_20px_30px_rgba(14,165,233,0.3)] font-bold flex flex-wrap"
+                >
+                  {"Frontend".split('').map((char, index) => (
+                    <motion.span
+                      key={index}
+                      variants={{
+                        hidden: { opacity: 0, y: 100, rotate: -20, filter: 'blur(10px)' },
+                        visible: { opacity: 1, y: 0, rotate: 0, filter: 'blur(0px)', transition: { type: "spring", damping: 12, stiffness: 100 } }
+                      }}
+                      className={cn("inline-block", char === ' ' && "w-[2rem] md:w-[4rem]")}
+                      style={{ background: "linear-gradient(to bottom right, #0284c7, #0ea5e9, #38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+                    >
+                      {char}
+                    </motion.span>
+                  ))}
+                </motion.h1>
+              </motion.div>
+
+              <motion.div
+                animate={{ y: [10, -10, 10], rotate: [1, -1, 1] }} 
+                transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
+                className="self-end md:mr-12 -mt-4 md:-mt-12"
+              >
+                <motion.h1 
+                  variants={{
+                    hidden: { opacity: 0 },
+                    visible: {
+                      opacity: 1,
+                      transition: { staggerChildren: 0.08, delayChildren: 0.8 }
+                    }
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                  className="text-[7rem] md:text-[12rem] leading-[0.8] font-cursive drop-shadow-[0_20px_30px_rgba(99,102,241,0.3)] font-bold flex flex-wrap"
+                >
+                  {"Detective".split('').map((char, index) => (
+                    <motion.span
+                      key={index}
+                      variants={{
+                        hidden: { opacity: 0, y: -100, rotate: 20, filter: 'blur(10px)' },
+                        visible: { opacity: 1, y: 0, rotate: 0, filter: 'blur(0px)', transition: { type: "spring", damping: 12, stiffness: 100 } }
+                      }}
+                      className={cn("inline-block", char === ' ' && "w-[2rem] md:w-[4rem]")}
+                      style={{ background: "linear-gradient(to bottom right, #4338ca, #6366f1, #8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+                    >
+                      {char}
+                    </motion.span>
+                  ))}
+                </motion.h1>
+              </motion.div>
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 2, duration: 1 }}
+              className="flex flex-col items-center"
+            >
+              <p className="text-xl md:text-3xl font-bold mb-8 max-w-3xl mx-auto leading-relaxed bg-white/60 p-6 rounded-3xl backdrop-blur-md border border-white/80 shadow-[0_10px_40px_-10px_rgba(99,102,241,0.2)] text-transparent bg-clip-text bg-gradient-to-r from-indigo-800 to-purple-800">
+                Solve the web's greatest mysteries. Prove your eye for detail in an immersive, high-performance UI environment.
+              </p>
+              
+              <div className="flex space-x-6 font-mono text-sm uppercase tracking-widest font-black mb-16">
+                <span className="flex items-center text-sky-600 bg-sky-50 px-4 py-2 rounded-full border border-sky-200 shadow-sm"><Search className="w-4 h-4 mr-2"/> Scan</span>
+                <span className="flex items-center text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 shadow-sm"><Crosshair className="w-4 h-4 mr-2"/> Identify</span>
+                <span className="flex items-center text-rose-600 bg-rose-50 px-4 py-2 rounded-full border border-rose-200 shadow-sm"><ShieldCheck className="w-4 h-4 mr-2"/> Resolve</span>
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
-      
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="z-10 text-center max-w-3xl glass-panel p-12 bracket-corner border-t-[#f59e0b] border-b-[#6366f1]"
-      >
-        <div className="mb-6 inline-flex justify-center p-4 bg-gradient-to-br from-[#f59e0b]/20 to-[#6366f1]/20 border border-[#6366f1]/50 text-white shadow-[0_0_20px_rgba(188,0,255,0.3)]">
-          <Cpu className="w-12 h-12" />
+
+      {/* GSAP Sticky Scroll Section */}
+      <div className="sticky-container h-screen flex items-center bg-white/70 backdrop-blur-xl border-y-4 border-white/50 overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.1)]">
+        <div className="horizontal-scroll whitespace-nowrap text-[18vw] font-black tracking-tighter pl-[10vw] pr-[10vw] flex space-x-16 inline-block w-max">
+          <span className="text-slate-900">OBSERVE.</span>
+          <span className="text-slate-900">ANALYZE.</span>
+          <span className="text-slate-900">PERFECT.</span>
         </div>
-        
-        <motion.h1 
-          animate={{ y: [-15, 15, -15] }} 
-          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-          className="text-7xl md:text-8xl mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-teal-400 to-green-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-          style={{ fontFamily: "'Dancing Script', cursive" }}
-        >
-          Frontend Detective
-        </motion.h1>
-        <div className="text-[#10b981] font-mono text-sm tracking-[0.3em] mb-10">DIGITAL FORENSICS DECK</div>
-        
-        <p className="text-[#e5e1e4]/80 mb-12 leading-relaxed max-w-xl mx-auto font-mono text-sm border-l-2 border-[#f43f5e] pl-4 text-left">
-          System compromised. Unauthorized visual mutations detected in sector 7G. Identify and patch the UI inconsistencies before the system crashes. Precision is mandatory.
-        </p>
-        
-        <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
-          {(['Easy', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
-            const colors = [
-              "border-[#06b6d4] text-[#06b6d4] shadow-[0_0_10px_rgba(0,255,136,0.3)] hover:bg-[#06b6d4]/20 hover:text-white",
-              "border-[#f59e0b] text-[#f59e0b] shadow-[0_0_10px_rgba(0,242,255,0.3)] hover:bg-[#f59e0b]/20 hover:text-white",
-              "border-[#10b981] text-[#10b981] shadow-[0_0_10px_rgba(255,170,0,0.3)] hover:bg-[#10b981]/20 hover:text-white",
-              "border-[#f43f5e] text-[#f43f5e] shadow-[0_0_10px_rgba(255,0,85,0.3)] hover:bg-[#f43f5e]/20 hover:text-white"
-            ];
-            return (
-              <motion.button
-                key={diff}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onStart(diff)}
-                className={cn(
-                  "py-3 px-6 font-mono font-bold text-sm tracking-widest uppercase transition-all border bg-black/50 backdrop-blur-sm",
-                  colors[i]
-                )}
-              >
-                {diff}
-              </motion.button>
-            )
-          })}
+      </div>
+
+      {/* Start Game Section */}
+      <div className="min-h-screen flex flex-col justify-center py-32 px-6 relative">
+        <div className="w-full max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-20">
+            <div>
+              <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight drop-shadow-sm">Select Project Scope</h2>
+            </div>
+            <p className="text-xl font-bold max-w-md mt-6 md:mt-0 text-right bg-white/70 p-5 rounded-2xl backdrop-blur-md border border-slate-200 shadow-lg text-slate-800">
+              Choose your role. Higher levels restrict your debugging time.
+            </p>
+          </div>
+          
+          <div className="flex flex-col w-full border-t-[3px] border-slate-900/10">
+            {(['Easy', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
+              const theme = [
+                { title: "Easy", desc: "Junior Developer", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "60s" },
+                { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "45s" },
+                { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "30s" },
+                { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "15s" }
+              ][i];
+              
+              return (
+                <div 
+                  key={diff} 
+                  onClick={() => onStart(diff)} 
+                  className={cn("group flex flex-col md:flex-row items-start md:items-center justify-between py-12 border-b-[3px] border-slate-900/10 cursor-pointer transition-all duration-500 px-4 md:px-12 rounded-2xl", theme.bg, theme.borderHover)}
+                >
+                  <div className="flex items-center space-x-12 mb-6 md:mb-0">
+                    <span className={cn("font-mono font-black text-2xl opacity-60 group-hover:opacity-100 transition-opacity", theme.accent)}>
+                      0{i + 1}
+                    </span>
+                    <h3 className="text-5xl md:text-7xl font-black text-slate-900 transition-all uppercase tracking-tight">
+                      {diff}
+                    </h3>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-16 w-full md:w-auto">
+                    <div className="flex flex-col text-left">
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-slate-500">Role</span>
+                      <span className="text-xl font-black transition-colors text-slate-700 group-hover:text-slate-900">{theme.desc}</span>
+                    </div>
+                    
+                    <div className="flex flex-col text-left">
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-slate-500">Time Limit</span>
+                      <span className="text-xl font-black font-mono transition-colors text-slate-800 group-hover:text-slate-900">{theme.time}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Footer */}
+      <footer className="w-full py-8 border-t border-slate-900/5 bg-white/40 backdrop-blur-md z-10 relative mt-auto">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+          
+          {/* Space for Logo */}
+          <div className="flex items-center space-x-4 mb-4 md:mb-0">
+            <div className="w-10 h-10 flex items-center justify-center border border-slate-300 shadow-sm bg-white rounded-lg p-1">
+              <img src="/club-logo.svg" className="w-full h-full object-contain" alt="Club Logo" />
+            </div>
+            <div className="text-slate-500 font-mono text-sm font-bold tracking-widest">
+              © {new Date().getFullYear()} Frontend Detective.
+            </div>
+          </div>
+          
+          <div className="flex space-x-6 text-slate-600 font-mono text-xs uppercase tracking-widest font-bold bg-slate-100 px-4 py-2 rounded-full shadow-sm border border-slate-200">
+            <span>Developed by Garvit Amit Bhutani</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -427,7 +781,7 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
 }
 
 export default function App() {
-  const { startGame, isPlaying, isGameOver, isVictory, tick } = useGameStore();
+  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, useHint, hintTargetId, difficulty } = useGameStore();
   const [magnifier, setMagnifier] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<any>(null);
@@ -477,23 +831,47 @@ export default function App() {
 
             <HUD />
             
-            <div className="fixed bottom-6 right-6 z-50 flex space-x-3">
+            <div className="fixed bottom-16 right-6 z-50 flex space-x-3">
               <button 
-                onClick={() => setMagnifier(!magnifier)}
+                onClick={() => {
+                  if (hintsLeft > 0) useHint();
+                }}
+                disabled={hintsLeft <= 0}
                 className={cn(
                   "p-3 shadow-xl transition-all border font-mono text-xs flex items-center space-x-2",
-                  magnifier 
+                  hintTargetId !== null 
                     ? "bg-[#f59e0b] text-black border-[#f59e0b]" 
-                    : "bg-[#06050b]/80 text-[#f59e0b] border-[#f59e0b]/30 hover:border-[#f59e0b] backdrop-blur-md"
+                    : hintsLeft > 0 
+                      ? "bg-[#06050b]/80 text-[#f59e0b] border-[#f59e0b]/30 hover:border-[#f59e0b] backdrop-blur-md"
+                      : "bg-[#06050b]/80 text-[#f59e0b]/30 border-[#f59e0b]/10 cursor-not-allowed backdrop-blur-md"
                 )}
-                title="Toggle Crosshair (M)"
+                title={hintsLeft > 0 ? "Use Scan Mode (1 Hint)" : "No Hints Remaining"}
               >
                 <Crosshair className="w-4 h-4" />
-                <span className="hidden md:inline">SCAN_MODE</span>
+                <span className="hidden md:inline">SCAN_MODE ({hintsLeft})</span>
               </button>
             </div>
 
-            <SaasLayout />
+            {difficulty === 'Easy' && <SaasLayout />}
+            {difficulty === 'Medium' && <MediumLayout />}
+            {difficulty === 'Hard' && <HardLayout />}
+            {difficulty === 'Nightmare' && <NightmareLayout />}
+            
+            {/* Game Footer */}
+            <div className="fixed bottom-0 left-0 w-full z-40 bg-slate-900/90 border-t border-[#6366f1]/30 backdrop-blur-md px-6 py-3 flex items-center justify-between font-mono pointer-events-auto shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center space-x-4">
+                <div className="w-8 h-8 flex items-center justify-center border border-[#6366f1]/50 bg-black/50 p-1">
+                  <img src="/club-profile.svg" className="w-full h-full object-contain" alt="Club Profile" />
+                </div>
+                <span className="text-[#6366f1] text-[10px] md:text-xs tracking-widest uppercase font-bold">
+                  © {new Date().getFullYear()} Frontend Detective
+                </span>
+              </div>
+              
+              <div className="text-[#10b981] text-[10px] md:text-xs tracking-widest uppercase font-bold px-3 py-1.5 bg-[#10b981]/10 border border-[#10b981]/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                Developed by Garvit Amit Bhutani
+              </div>
+            </div>
             
             <AnimatePresence>
               {(isGameOver || isVictory) && <EndScreen isVictory={isVictory} />}
