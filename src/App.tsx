@@ -720,8 +720,13 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
             </div>
           </div>
           
-          <div className="flex space-x-6 text-slate-600 font-mono text-xs uppercase tracking-widest font-bold bg-slate-100 px-4 py-2 rounded-full shadow-sm border border-slate-200">
-            <span>Developed by Garvit Amit Bhutani</span>
+          <div className="flex items-center space-x-4">
+            <a href="https://linktr.ee/nexasoul_cu" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-indigo-600 font-mono text-xs uppercase tracking-widest font-bold bg-slate-100 px-4 py-2 rounded-full shadow-sm border border-slate-200 transition-colors">
+              Nexasoul
+            </a>
+            <div className="text-slate-600 font-mono text-xs uppercase tracking-widest font-bold bg-slate-100 px-4 py-2 rounded-full shadow-sm border border-slate-200">
+              Developed by Garvit Amit Bhutani
+            </div>
           </div>
         </div>
       </footer>
@@ -868,8 +873,13 @@ export default function App() {
                 </span>
               </div>
               
-              <div className="text-[#10b981] text-[10px] md:text-xs tracking-widest uppercase font-bold px-3 py-1.5 bg-[#10b981]/10 border border-[#10b981]/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                Developed by Garvit Amit Bhutani
+              <div className="flex items-center space-x-4">
+                <a href="https://linktr.ee/nexasoul_cu" target="_blank" rel="noopener noreferrer" className="text-[#6366f1] hover:text-white text-[10px] md:text-xs tracking-widest uppercase font-bold px-3 py-1.5 bg-[#6366f1]/10 border border-[#6366f1]/30 transition-colors shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                  Nexasoul
+                </a>
+                <div className="text-[#10b981] text-[10px] md:text-xs tracking-widest uppercase font-bold px-3 py-1.5 bg-[#10b981]/10 border border-[#10b981]/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                  Developed by Garvit Amit Bhutani
+                </div>
               </div>
             </div>
             
