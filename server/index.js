@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:Nexa%40soul123@cluster0.rh2fiub.mongodb.net/FrontendDetective?retryWrites=true&w=majority";
 
 if (!MONGO_URI) {
   console.warn("⚠️ No MONGO_URI provided! The server will start, but database operations will fail. Please add a MongoDB connection string.");
