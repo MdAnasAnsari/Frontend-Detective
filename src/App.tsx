@@ -548,10 +548,10 @@ function StartScreen({
       }} />
 
       {/* Top Header Bar for Login & Leaderboard & Host Mode */}
-      <div className="fixed top-4 right-6 z-[60] flex items-center space-x-3 font-mono text-xs">
+      <div className="fixed top-4 right-4 md:right-6 z-[60] flex items-center space-x-2 md:space-x-3 font-mono text-xs">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-host-mode'))}
-          className="bg-indigo-900/80 hover:bg-indigo-900 text-indigo-100 border border-indigo-500 shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+          className="bg-indigo-900/80 hover:bg-indigo-900 text-indigo-100 border border-indigo-500 shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
         >
           <MonitorPlay className="w-4 h-4" />
           <span className="hidden md:inline">Host Mode</span>
@@ -559,25 +559,25 @@ function StartScreen({
 
         <button
           onClick={onOpenLeaderboard}
-          className="bg-white/80 hover:bg-white text-slate-900 border border-slate-300 hover:border-[#f59e0b] shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+          className="bg-white/80 hover:bg-white text-slate-900 border border-slate-300 hover:border-[#f59e0b] shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
         >
           <Trophy className="w-4 h-4 text-[#f59e0b]" />
-          <span>Leaderboard</span>
+          <span className="hidden sm:inline">Leaderboard</span>
         </button>
 
         <button
           onClick={onOpenAuth}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
         >
           {user ? (
             <>
               <span className="text-base">{user.avatar}</span>
-              <span>{user.username}</span>
+              <span className="hidden sm:inline">{user.username}</span>
             </>
           ) : (
             <>
               <LogIn className="w-4 h-4" />
-              <span>Login / Register</span>
+              <span className="hidden sm:inline">Login</span>
             </>
           )}
         </button>
