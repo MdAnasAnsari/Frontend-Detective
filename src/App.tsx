@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, Trophy, LogIn } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, Trophy, LogIn, MonitorPlay } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
