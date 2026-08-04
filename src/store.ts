@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Nightmare';
+export type Difficulty = 'Demo' | 'Medium' | 'Hard' | 'Nightmare';
 
 export interface GameError {
   id: string;
@@ -10,6 +10,17 @@ export interface GameError {
   // Visuals for the error state and fixed state
   errorClass: string;
   fixedClass: string;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  avatar: string;
+  badge: string;
+  totalXp: number;
+  gamesPlayed: number;
+  victories: number;
 }
 
 interface GameState {
@@ -26,6 +37,13 @@ interface GameState {
   hintsLeft: number;
   hintTargetId: string | null;
   
+  // Auth state
+  user: UserProfile | null;
+  token: string | null;
+  setUser: (user: UserProfile | null) => void;
+  setToken: (token: string | null) => void;
+  logout: () => void;
+
   startGame: (difficulty: Difficulty) => void;
   fixError: (id: string) => void;
   missClick: () => void;
@@ -34,7 +52,7 @@ interface GameState {
   useHint: () => void;
 }
 
-const EASY_ERRORS: GameError[] = [
+const DEMO_ERRORS: GameError[] = [
   { id: 'err-1', description: 'Uneven button padding', points: 100, fixed: false, errorClass: 'px-2 py-4', fixedClass: 'px-6 py-3' },
   { id: 'err-2', description: 'Misaligned icon', points: 100, fixed: false, errorClass: '-mt-2', fixedClass: 'mt-0' },
   { id: 'err-3', description: 'Different border radius on one card', points: 100, fixed: false, errorClass: 'rounded-sm', fixedClass: 'rounded-2xl' },
@@ -66,6 +84,11 @@ const NIGHTMARE_ERRORS: GameError[] = [
   { id: 'night-err-5', description: 'Null pointer exception in layout', points: 500, fixed: false, errorClass: 'opacity-0 pointer-events-none', fixedClass: 'opacity-100 pointer-events-auto' },
 ];
 
+// Initial saved auth token & user
+const savedToken = localStorage.getItem('detective_token');
+const savedUserStr = localStorage.getItem('detective_user');
+const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+
 export const useGameStore = create<GameState>((set) => ({
   isPlaying: false,
   isGameOver: false,
@@ -74,15 +97,36 @@ export const useGameStore = create<GameState>((set) => ({
   timeLeft: 60,
   xp: 0,
   combo: 0,
-  difficulty: 'Easy',
+  difficulty: 'Demo',
   theme: 'SaaS',
   errors: [],
   hintsLeft: 1,
   hintTargetId: null,
 
+  user: savedUser,
+  token: savedToken,
+
+  setUser: (user) => {
+    if (user) localStorage.setItem('detective_user', JSON.stringify(user));
+    else localStorage.removeItem('detective_user');
+    set({ user });
+  },
+
+  setToken: (token) => {
+    if (token) localStorage.setItem('detective_token', token);
+    else localStorage.removeItem('detective_token');
+    set({ token });
+  },
+
+  logout: () => {
+    localStorage.removeItem('detective_token');
+    localStorage.removeItem('detective_user');
+    set({ user: null, token: null });
+  },
+
   startGame: (difficulty: Difficulty) => {
-    const timeLimits = { Easy: 60, Medium: 45, Hard: 30, Nightmare: 15 };
-    const errorsMap = { Easy: EASY_ERRORS, Medium: MEDIUM_ERRORS, Hard: HARD_ERRORS, Nightmare: NIGHTMARE_ERRORS };
+    const timeLimits = { Demo: 60, Medium: 45, Hard: 30, Nightmare: 15 };
+    const errorsMap = { Demo: DEMO_ERRORS, Medium: MEDIUM_ERRORS, Hard: HARD_ERRORS, Nightmare: NIGHTMARE_ERRORS };
     
     set({
       isPlaying: true,

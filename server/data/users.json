@@ -1,0 +1,35 @@
+[
+  {
+    "id": "usr-1",
+    "username": "GarvitBhutani",
+    "email": "garvit@nexasoul.com",
+    "password": "password123",
+    "avatar": "🕵️‍♂️",
+    "badge": "Chief Detective",
+    "totalXp": 4800,
+    "gamesPlayed": 12,
+    "victories": 11
+  },
+  {
+    "id": "usr-2",
+    "username": "CyberNinja",
+    "email": "ninja@cyber.io",
+    "password": "password123",
+    "avatar": "🥷",
+    "badge": "Senior Bug Hunter",
+    "totalXp": 3650,
+    "gamesPlayed": 10,
+    "victories": 8
+  },
+  {
+    "id": "usr-3",
+    "username": "CodeSherlock",
+    "email": "sherlock@holmes.dev",
+    "password": "password123",
+    "avatar": "🔎",
+    "badge": "Master Sleuth",
+    "totalXp": 2900,
+    "gamesPlayed": 7,
+    "victories": 6
+  }
+]

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, Trophy, LogIn } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
+import AuthModal from './AuthModal';
+import LeaderboardModal from './LeaderboardModal';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,8 +16,8 @@ function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
-function HUD() {
-  const { attemptsLeft, timeLeft, xp, difficulty, combo, errors } = useGameStore();
+function HUD({ onOpenAuth, onOpenLeaderboard }: { onOpenAuth: () => void; onOpenLeaderboard: () => void }) {
+  const { attemptsLeft, timeLeft, xp, difficulty, combo, errors, user } = useGameStore();
   const foundErrors = errors.filter(e => e.fixed).length;
   const totalErrors = errors.length;
   const progress = totalErrors === 0 ? 0 : (foundErrors / totalErrors) * 100;
@@ -39,40 +41,72 @@ function HUD() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-8">
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] text-[#f59e0b]/70 uppercase tracking-widest mb-0.5">Bugs Located</span>
-            <div className="text-lg font-bold flex items-baseline space-x-1 text-[#f59e0b]">
-              <span>{foundErrors}</span>
-              <span className="text-[#f59e0b]/40 text-xs">/ {totalErrors}</span>
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-[#f59e0b]/70 uppercase tracking-widest mb-0.5">Bugs Located</span>
+              <div className="text-lg font-bold flex items-baseline space-x-1 text-[#f59e0b]">
+                <span>{foundErrors}</span>
+                <span className="text-[#f59e0b]/40 text-xs">/ {totalErrors}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-[#f43f5e]/70 uppercase tracking-widest mb-0.5">Integrity</span>
+              <div className="text-lg font-bold text-[#f43f5e]">
+                {attemptsLeft} ATK
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-[#10b981]/70 uppercase tracking-widest mb-0.5">Uplink Time</span>
+              <div className={cn("text-lg font-bold", timeLeft <= 10 ? "text-[#f43f5e] animate-pulse" : "text-[#10b981]")}>
+                0:{timeLeft.toString().padStart(2, '0')}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-[#6366f1]/70 uppercase tracking-widest mb-0.5">Bounty (CR)</span>
+              <motion.div 
+                key={xp}
+                initial={{ scale: 1.2, color: '#fff' }}
+                animate={{ scale: 1, color: '#6366f1' }}
+                className="text-lg font-bold text-[#6366f1] flex items-center space-x-2"
+              >
+                <span>{xp.toString().padStart(4, '0')}</span>
+                {combo > 1 && <span className="text-[10px] bg-[#6366f1]/20 text-[#6366f1] px-1.5 py-0.5 border border-[#6366f1]/30">x{combo}</span>}
+              </motion.div>
             </div>
           </div>
 
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] text-[#f43f5e]/70 uppercase tracking-widest mb-0.5">Integrity</span>
-            <div className="text-lg font-bold text-[#f43f5e]">
-              {attemptsLeft} ATK
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] text-[#10b981]/70 uppercase tracking-widest mb-0.5">Uplink Time</span>
-            <div className={cn("text-lg font-bold", timeLeft <= 10 ? "text-[#f43f5e] animate-pulse" : "text-[#10b981]")}>
-              0:{timeLeft.toString().padStart(2, '0')}
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] text-[#6366f1]/70 uppercase tracking-widest mb-0.5">Bounty (CR)</span>
-            <motion.div 
-              key={xp}
-              initial={{ scale: 1.2, color: '#fff' }}
-              animate={{ scale: 1, color: '#6366f1' }}
-              className="text-lg font-bold text-[#6366f1] flex items-center space-x-2"
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2 pointer-events-auto">
+            <button
+              onClick={onOpenLeaderboard}
+              className="px-3 py-1.5 bg-[#f59e0b]/10 border border-[#f59e0b]/40 hover:bg-[#f59e0b]/20 text-[#f59e0b] text-xs font-bold font-mono rounded flex items-center space-x-1.5 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+              title="Global Leaderboard"
             >
-              <span>{xp.toString().padStart(4, '0')}</span>
-              {combo > 1 && <span className="text-[10px] bg-[#6366f1]/20 text-[#6366f1] px-1.5 py-0.5 border border-[#6366f1]/30">x{combo}</span>}
-            </motion.div>
+              <Trophy className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">LEADERBOARD</span>
+            </button>
+
+            <button
+              onClick={onOpenAuth}
+              className="px-3 py-1.5 bg-[#6366f1]/10 border border-[#6366f1]/40 hover:bg-[#6366f1]/20 text-[#6366f1] text-xs font-bold font-mono rounded flex items-center space-x-1.5 transition-colors shadow-[0_0_10px_rgba(99,102,241,0.2)]"
+              title={user ? `Profile (${user.username})` : "Login / Register"}
+            >
+              {user ? (
+                <>
+                  <span>{user.avatar}</span>
+                  <span className="hidden md:inline">{user.username}</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">LOGIN</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -158,7 +192,7 @@ function SaasLayout() {
       <div className="relative w-full max-w-5xl bracket-corner p-2">
         <div className="absolute -top-6 left-4 text-[#10b981] font-mono text-xs flex items-center space-x-2">
           <Maximize2 className="w-3 h-3" />
-          <span>CSS GRID // VIEWPORT 1</span>
+          <span>DEMO LEVEL // VIEWPORT 1</span>
         </div>
         
         <div className="glass-panel p-10 bg-slate-900/60 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2">
@@ -166,7 +200,7 @@ function SaasLayout() {
           <div className="text-center max-w-3xl mx-auto mb-20 relative z-10">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center space-x-2 bg-[#06b6d4]/10 text-[#06b6d4] px-4 py-1.5 mb-8 font-mono text-xs border border-[#06b6d4]/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,255,136,0.2)]">
               <span className="w-1.5 h-1.5 bg-[#06b6d4] animate-pulse"></span>
-              <span>SYSTEM ONLINE</span>
+              <span>DEMO MODE ONLINE</span>
             </motion.div>
             
             <MistakeElement id={errors[3]?.id || 'err-4'} className="mb-6">
@@ -374,8 +408,6 @@ function NightmareLayout() {
   );
 }
 
-
-
 function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(1);
 
@@ -457,8 +489,17 @@ function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
+function StartScreen({
+  onStart,
+  onOpenAuth,
+  onOpenLeaderboard,
+}: {
+  onStart: (diff: any) => void;
+  onOpenAuth: () => void;
+  onOpenLeaderboard: () => void;
+}) {
   const container = useRef<HTMLDivElement>(null);
+  const { user } = useGameStore();
 
   useGSAP(() => {
     gsap.to('.hero-text', {
@@ -504,6 +545,34 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
         backgroundSize: '50px 50px',
         maskImage: 'radial-gradient(circle at 50% 50%, black 40%, transparent 80%)'
       }} />
+
+      {/* Top Header Bar for Login & Leaderboard */}
+      <div className="fixed top-4 right-6 z-[60] flex items-center space-x-3 font-mono text-xs">
+        <button
+          onClick={onOpenLeaderboard}
+          className="bg-white/80 hover:bg-white text-slate-900 border border-slate-300 hover:border-[#f59e0b] shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+        >
+          <Trophy className="w-4 h-4 text-[#f59e0b]" />
+          <span>Leaderboard</span>
+        </button>
+
+        <button
+          onClick={onOpenAuth}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+        >
+          {user ? (
+            <>
+              <span className="text-base">{user.avatar}</span>
+              <span>{user.username}</span>
+            </>
+          ) : (
+            <>
+              <LogIn className="w-4 h-4" />
+              <span>Login / Register</span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Hero Section */}
       <div className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
@@ -665,9 +734,9 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
           </div>
           
           <div className="flex flex-col w-full border-t-[3px] border-slate-900/10">
-            {(['Easy', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
+            {(['Demo', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
               const theme = [
-                { title: "Easy", desc: "Junior Developer", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "60s" },
+                { title: "Demo", desc: "Demo Level (Introductory)", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "60s" },
                 { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "45s" },
                 { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "30s" },
                 { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "15s" }
@@ -684,7 +753,7 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
                       0{i + 1}
                     </span>
                     <h3 className="text-5xl md:text-7xl font-black text-slate-900 transition-all uppercase tracking-tight">
-                      {diff}
+                      {diff === 'Demo' ? 'Demo Level' : diff}
                     </h3>
                   </div>
                   
@@ -734,9 +803,36 @@ function StartScreen({ onStart }: { onStart: (diff: any) => void }) {
   );
 }
 
-function EndScreen({ isVictory }: { isVictory: boolean }) {
-  const { xp, timeLeft, resetGame } = useGameStore();
+function EndScreen({ isVictory, onOpenLeaderboard }: { isVictory: boolean; onOpenLeaderboard: () => void }) {
+  const { xp, timeLeft, difficulty, user, resetGame } = useGameStore();
   const timeOut = timeLeft <= 0;
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    // Automatically submit score to backend leaderboard if user earned XP
+    if (xp > 0 && !submitted) {
+      const submitScore = async () => {
+        try {
+          await fetch('/api/leaderboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: user ? user.username : 'Guest Agent',
+              avatar: user ? user.avatar : '🕵️',
+              xp,
+              difficulty,
+              timeLeft,
+              userId: user ? user.id : undefined,
+            }),
+          });
+          setSubmitted(true);
+        } catch (e) {
+          console.warn('Leaderboard score submit warning:', e);
+        }
+      };
+      submitScore();
+    }
+  }, [xp, difficulty, timeLeft, user, submitted]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-indigo-950/80 backdrop-blur-md p-6 crt-flicker">
@@ -773,13 +869,23 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
           </div>
         </div>
 
-        <button 
-          onClick={resetGame}
-          className="w-full py-4 cyber-button"
-          style={{ borderColor: isVictory ? '#06b6d4' : '#f43f5e', color: isVictory ? '#06b6d4' : '#f43f5e', boxShadow: `0 0 10px ${isVictory ? 'rgba(0,255,136,0.2)' : 'rgba(255,0,85,0.2)'}` }}
-        >
-          {isVictory ? 'NEXT ASSIGNMENT' : 'REBOOT SYSTEM'}
-        </button>
+        <div className="space-y-3">
+          <button 
+            onClick={onOpenLeaderboard}
+            className="w-full py-3 bg-[#f59e0b]/20 text-[#f59e0b] border border-[#f59e0b]/50 hover:bg-[#f59e0b]/30 font-mono font-bold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Trophy className="w-4 h-4" />
+            <span>VIEW LEADERBOARD</span>
+          </button>
+
+          <button 
+            onClick={resetGame}
+            className="w-full py-4 cyber-button"
+            style={{ borderColor: isVictory ? '#06b6d4' : '#f43f5e', color: isVictory ? '#06b6d4' : '#f43f5e', boxShadow: `0 0 10px ${isVictory ? 'rgba(0,255,136,0.2)' : 'rgba(255,0,85,0.2)'}` }}
+          >
+            {isVictory ? 'NEXT ASSIGNMENT' : 'REBOOT SYSTEM'}
+          </button>
+        </div>
       </motion.div>
     </div>
   );
@@ -790,6 +896,10 @@ export default function App() {
   const [magnifier, setMagnifier] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<any>(null);
+
+  // Auth & Leaderboard Modal States
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
   const handleStart = (diff: any) => {
     setSelectedDifficulty(diff);
@@ -824,17 +934,28 @@ export default function App() {
       "min-h-screen transition-colors duration-500 bg-gradient-to-br from-blue-950 via-cyan-900 to-teal-950",
       magnifier ? "cursor-magnifier" : ""
     )}>
+      {/* Global Modals */}
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
+
       <AnimatePresence mode="wait">
         {!isPlaying && !isGameOver && !isVictory && !showTutorial ? (
           <motion.div key="start" exit={{ opacity: 0, scale: 1.1 }}>
-            <StartScreen onStart={handleStart} />
+            <StartScreen
+              onStart={handleStart}
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            />
           </motion.div>
         ) : (
           <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
             
             {showTutorial && <TutorialOverlay onComplete={handleTutorialComplete} />}
 
-            <HUD />
+            <HUD
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            />
             
             <div className="fixed bottom-16 right-6 z-50 flex space-x-3">
               <button 
@@ -857,7 +978,7 @@ export default function App() {
               </button>
             </div>
 
-            {difficulty === 'Easy' && <SaasLayout />}
+            {difficulty === 'Demo' && <SaasLayout />}
             {difficulty === 'Medium' && <MediumLayout />}
             {difficulty === 'Hard' && <HardLayout />}
             {difficulty === 'Nightmare' && <NightmareLayout />}
@@ -884,7 +1005,12 @@ export default function App() {
             </div>
             
             <AnimatePresence>
-              {(isGameOver || isVictory) && <EndScreen isVictory={isVictory} />}
+              {(isGameOver || isVictory) && (
+                <EndScreen
+                  isVictory={isVictory}
+                  onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+                />
+              )}
             </AnimatePresence>
           </motion.div>
         )}
