@@ -29,9 +29,11 @@ if (!MONGO_URI) {
 
 // Schemas
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  name: { type: String, required: true },
+  uid: { type: String, required: true, unique: true },
+  branch: { type: String, required: true },
+  email: { type: String, required: true },
+  contact: { type: String, required: true },
   avatar: { type: String, default: '🕵️' },
   badge: { type: String, default: 'Rookie Detective' },
   totalXp: { type: Number, default: 0 },
@@ -54,52 +56,27 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 // Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, email, password, avatar } = req.body;
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Username, email and password are required' });
+    const { name, uid, branch, email, contact, avatar } = req.body;
+    if (!name || !uid || !branch || !email || !contact) {
+      return res.status(400).json({ error: 'All fields (name, uid, branch, email, contact) are required' });
     }
 
-    const existingUser = await User.findOne({ $or: [{ email: new RegExp('^' + email + '$', 'i') }, { username: new RegExp('^' + username + '$', 'i') }] });
+    const existingUser = await User.findOne({ uid: new RegExp('^' + uid + '$', 'i') });
     if (existingUser) {
-      return res.status(400).json({ error: 'Username or email already exists' });
+      // If user already exists with this UID, just log them in (seamless experience)
+      return res.json({ token: `jwt-token-${existingUser._id}`, user: { id: existingUser._id, ...existingUser.toObject(), username: existingUser.name } });
     }
 
-    const newUser = new User({ username, email, password, avatar });
+    const newUser = new User({ name, uid, branch, email, contact, avatar });
     await newUser.save();
 
     const userObj = newUser.toObject();
-    delete userObj.password;
     
-    return res.json({ token: `jwt-token-${userObj._id}`, user: { id: userObj._id, ...userObj } });
+    // Send back username as name so the frontend doesn't break
+    return res.json({ token: `jwt-token-${userObj._id}`, user: { id: userObj._id, ...userObj, username: userObj.name } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error during registration' });
-  }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { identifier, password } = req.body;
-    if (!identifier || !password) {
-      return res.status(400).json({ error: 'Please enter username/email and password' });
-    }
-
-    const user = await User.findOne({
-      $or: [{ email: new RegExp('^' + identifier + '$', 'i') }, { username: new RegExp('^' + identifier + '$', 'i') }],
-      password: password
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials. Please check your email/username and password.' });
-    }
-
-    const userObj = user.toObject();
-    delete userObj.password;
-    
-    return res.json({ token: `jwt-token-${userObj._id}`, user: { id: userObj._id, ...userObj } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error during login' });
   }
 });
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Lock, Mail, ShieldCheck, LogOut, Award, Zap, Trophy } from 'lucide-react';
+import { X, User, Mail, ShieldCheck, LogOut, Award, Zap, Trophy, Hash, Phone, Building2 } from 'lucide-react';
 import { useGameStore } from './store';
 
 interface AuthModalProps {
@@ -12,57 +12,29 @@ const AVATARS = ['🕵️‍♂️', '🕵️‍♀️', '🥷', '🔎', '⚡', 
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { user, setUser, setToken, logout } = useGameStore();
-  const [mode, setMode] = useState<'login' | 'register' | 'profile'>(user ? 'profile' : 'login');
+  const [mode, setMode] = useState<'register' | 'profile'>('register');
   
-  // Form states
-  const [identifier, setIdentifier] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('🕵️‍♂️');
+  useEffect(() => {
+    if (user) setMode('profile');
+    else setMode('register');
+  }, [user]);
 
+  // Form states
+  const [name, setName] = useState('');
+  const [uid, setUid] = useState('');
+  const [branch, setBranch] = useState('');
+  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
+  const [avatar, setAvatar] = useState(AVATARS[0]);
+  
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   if (!isOpen) return null;
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-    setLoading(true);
-
-    try {
-      const res = await fetch('https://frontend-detective-test.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to login');
-      }
-
-      setToken(data.token);
-      setUser(data.user);
-      setSuccessMsg('Authentication successful! Welcome back Agent.');
-      setTimeout(() => {
-        setMode('profile');
-        setSuccessMsg('');
-      }, 1000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Login failed. Please check credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
+    setError('');
     setLoading(true);
 
     try {
@@ -70,247 +42,238 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username,
+          name,
+          uid,
+          branch,
           email,
-          password,
-          avatar: selectedAvatar,
+          contact,
+          avatar
         }),
       });
 
       const data = await res.json();
+      
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to register');
+        throw new Error(data.error || 'Registration failed');
       }
 
       setToken(data.token);
       setUser(data.user);
-      setSuccessMsg('Account created successfully! Clearance Granted.');
-      setTimeout(() => {
-        setMode('profile');
-        setSuccessMsg('');
-      }, 1000);
+      setMode('profile');
+      
     } catch (err: any) {
-      setErrorMsg(err.message || 'Registration failed.');
+      setError(err.message);
+      // Fallback to local storage if API fails
+      if (err.message === 'Failed to fetch') {
+        const dummyUser = {
+          id: `local-${Date.now()}`,
+          username: name,
+          email,
+          avatar,
+          badge: 'Rookie Detective',
+          totalXp: 0,
+          gamesPlayed: 0,
+          victories: 0
+        };
+        setUser(dummyUser);
+        setToken(`dummy-token-${Date.now()}`);
+        setMode('profile');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-indigo-950/80 backdrop-blur-md p-4 crt-flicker">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="w-full max-w-md bg-slate-900 border-2 border-[#6366f1] p-6 md:p-8 shadow-[0_0_40px_rgba(99,102,241,0.3)] relative text-white rounded-xl"
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
+  const handleLogout = () => {
+    logout();
+    setMode('register');
+    onClose();
+  };
+
+  if (mode === 'profile' && user) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden relative shadow-2xl"
         >
-          <X className="w-6 h-6" />
-        </button>
+          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-indigo-600 to-blue-500 opacity-20"></div>
+          
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
 
-        {/* Header Tabs */}
-        <div className="flex justify-around border-b border-white/10 pb-4 mb-6">
-          {user ? (
-            <div className="flex items-center space-x-2 text-[#10b981] font-mono font-bold tracking-widest text-lg">
-              <ShieldCheck className="w-6 h-6" />
-              <span>DETECTIVE DOSSIER</span>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={() => { setMode('login'); setErrorMsg(''); }}
-                className={`font-mono text-sm font-bold uppercase tracking-widest px-4 py-2 transition-colors border-b-2 ${
-                  mode === 'login' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-white/50 hover:text-white'
-                }`}
-              >
-                Access Terminal (Login)
-              </button>
-              <button
-                onClick={() => { setMode('register'); setErrorMsg(''); }}
-                className={`font-mono text-sm font-bold uppercase tracking-widest px-4 py-2 transition-colors border-b-2 ${
-                  mode === 'register' ? 'border-[#10b981] text-[#10b981]' : 'border-transparent text-white/50 hover:text-white'
-                }`}
-              >
-                New Agent (Register)
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Error / Success Notifications */}
-        {errorMsg && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 text-red-400 font-mono text-xs rounded flex items-center space-x-2">
-            <span>⚠️</span>
-            <span>{errorMsg}</span>
-          </div>
-        )}
-        {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500 text-emerald-400 font-mono text-xs rounded flex items-center space-x-2">
-            <span>✅</span>
-            <span>{successMsg}</span>
-          </div>
-        )}
-
-        {/* PROFILE MODE */}
-        {user && mode === 'profile' && (
-          <div className="space-y-6">
-            <div className="flex items-center space-x-4 bg-black/40 p-4 border border-white/10 rounded-lg">
-              <div className="text-4xl bg-slate-800 p-3 rounded-full border border-[#6366f1]/50">
+          <div className="p-8 relative z-10">
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="w-24 h-24 bg-slate-800 border border-indigo-500 rounded-full flex items-center justify-center text-5xl mb-4 shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                 {user.avatar}
               </div>
+              <h2 className="text-2xl font-bold text-white font-mono">{user.username}</h2>
+              <p className="text-indigo-400 font-mono text-sm">{user.badge}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <div className="flex items-center space-x-2 text-slate-400 mb-1">
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  <span className="text-xs uppercase tracking-wider font-bold">Total XP</span>
+                </div>
+                <div className="text-2xl font-bold text-white font-mono">{user.totalXp}</div>
+              </div>
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <div className="flex items-center space-x-2 text-slate-400 mb-1">
+                  <Trophy className="w-4 h-4 text-[#f59e0b]" />
+                  <span className="text-xs uppercase tracking-wider font-bold">Victories</span>
+                </div>
+                <div className="text-2xl font-bold text-white font-mono">{user.victories}</div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/50 py-3 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center space-x-2 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden relative shadow-2xl"
+      >
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+          <div className="flex items-center space-x-2 text-indigo-400">
+            <ShieldCheck className="w-5 h-5" />
+            <h2 className="text-xl font-bold uppercase tracking-widest font-mono text-white">Event Registration</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-lg text-sm mb-6 font-mono text-center">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Full Name</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-slate-500" />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="block w-full pl-10 bg-black/60 border border-white/20 rounded-lg py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                  placeholder="e.g. John Doe"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Student UID</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Hash className="h-5 w-5 text-slate-500" />
+                </div>
+                <input
+                  type="text"
+                  value={uid}
+                  onChange={(e) => setUid(e.target.value)}
+                  className="block w-full pl-10 bg-black/60 border border-white/20 rounded-lg py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                  placeholder="e.g. 21BCS1234"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="text-xl font-bold text-white">{user.username}</h3>
-                <p className="text-xs font-mono text-white/60">{user.email}</p>
-                <div className="inline-block mt-1 px-2.5 py-0.5 bg-[#6366f1]/20 border border-[#6366f1]/40 text-[#6366f1] text-[10px] font-mono font-bold uppercase tracking-wider rounded">
-                  {user.badge}
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Branch</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building2 className="h-5 w-5 text-slate-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    className="block w-full pl-10 bg-black/60 border border-white/20 rounded-lg py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    placeholder="CSE / IT"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Contact</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Phone className="h-5 w-5 text-slate-500" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    className="block w-full pl-10 bg-black/60 border border-white/20 rounded-lg py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    placeholder="Phone number"
+                    required
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 font-mono text-center">
-              <div className="bg-black/50 p-3 border border-white/10 rounded">
-                <Zap className="w-4 h-4 text-[#f59e0b] mx-auto mb-1" />
-                <div className="text-[10px] text-white/50 uppercase">Total XP</div>
-                <div className="text-lg font-bold text-[#f59e0b]">{user.totalXp}</div>
-              </div>
-              <div className="bg-black/50 p-3 border border-white/10 rounded">
-                <Trophy className="w-4 h-4 text-[#10b981] mx-auto mb-1" />
-                <div className="text-[10px] text-white/50 uppercase">Victories</div>
-                <div className="text-lg font-bold text-[#10b981]">{user.victories}</div>
-              </div>
-              <div className="bg-black/50 p-3 border border-white/10 rounded">
-                <Award className="w-4 h-4 text-[#06b6d4] mx-auto mb-1" />
-                <div className="text-[10px] text-white/50 uppercase">Missions</div>
-                <div className="text-lg font-bold text-[#06b6d4]">{user.gamesPlayed}</div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => { logout(); setMode('login'); }}
-              className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 font-mono text-xs font-bold uppercase tracking-widest rounded flex items-center justify-center space-x-2 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sever Session (Logout)</span>
-            </button>
-          </div>
-        )}
-
-        {/* LOGIN FORM */}
-        {!user && mode === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-4 font-mono">
             <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Agent ID / Email</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Email Address</label>
               <div className="relative">
-                <User className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter username or email"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full bg-black/60 border border-white/20 focus:border-[#6366f1] pl-10 pr-4 py-2.5 text-sm rounded outline-none text-white transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Passcode</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter passcode"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black/60 border border-white/20 focus:border-[#6366f1] pl-10 pr-4 py-2.5 text-sm rounded outline-none text-white transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-[#6366f1] hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-widest rounded shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <span>Authenticating...</span>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Authenticate Session</span>
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* REGISTER FORM */}
-        {!user && mode === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-4 font-mono">
-            <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Agent Alias (Username)</label>
-              <div className="relative">
-                <User className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. DetectiveX"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-black/60 border border-white/20 focus:border-[#10b981] pl-10 pr-4 py-2 text-sm rounded outline-none text-white transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Secure Email</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-500" />
+                </div>
                 <input
                   type="email"
-                  required
-                  placeholder="agent@nexasoul.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/60 border border-white/20 focus:border-[#10b981] pl-10 pr-4 py-2 text-sm rounded outline-none text-white transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Passcode</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
-                <input
-                  type="password"
+                  className="block w-full pl-10 bg-black/60 border border-white/20 rounded-lg py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                  placeholder="name@university.edu"
                   required
-                  placeholder="Create passcode"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black/60 border border-white/20 focus:border-[#10b981] pl-10 pr-4 py-2 text-sm rounded outline-none text-white transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-white/70 uppercase tracking-wider mb-1">Choose Avatar Badge</label>
-              <div className="flex space-x-2 overflow-x-auto pb-1">
-                {AVATARS.map((av) => (
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 font-mono">Select Avatar</label>
+              <div className="grid grid-cols-4 gap-2">
+                {AVATARS.map((emoji) => (
                   <button
-                    key={av}
+                    key={emoji}
                     type="button"
-                    onClick={() => setSelectedAvatar(av)}
-                    className={`text-2xl p-2 rounded-lg border transition-all ${
-                      selectedAvatar === av
-                        ? 'border-[#10b981] bg-[#10b981]/20 scale-110'
-                        : 'border-white/10 bg-black/40 hover:border-white/30'
+                    onClick={() => setAvatar(emoji)}
+                    className={`text-2xl p-2 rounded-xl transition-all ${
+                      avatar === emoji
+                        ? 'bg-indigo-600 border border-indigo-400 scale-110 shadow-lg shadow-indigo-500/30'
+                        : 'bg-black/40 border border-white/10 hover:bg-black/60 hover:scale-105'
                     }`}
                   >
-                    {av}
+                    {emoji}
                   </button>
                 ))}
               </div>
@@ -319,19 +282,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-[#10b981] hover:bg-emerald-500 text-black font-bold text-xs uppercase tracking-widest rounded shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center space-x-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed font-mono uppercase tracking-wider mt-4"
             >
-              {loading ? (
-                <span>Registering Agent...</span>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Register & Obtain Clearance</span>
-                </>
-              )}
+              {loading ? 'Initializing Agent...' : 'Join Event'}
             </button>
           </form>
-        )}
+        </div>
       </motion.div>
     </div>
   );
