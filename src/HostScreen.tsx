@@ -8,7 +8,7 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await fetch('/api/leaderboard');
+      const res = await fetch('https://frontend-detective-test.onrender.com/api/leaderboard');
       if (res.ok) {
         const data = await res.json();
         setEntries(data);

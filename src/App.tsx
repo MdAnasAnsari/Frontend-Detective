@@ -822,7 +822,7 @@ function EndScreen({ isVictory, onOpenLeaderboard }: { isVictory: boolean; onOpe
     if (xp > 0 && !submitted) {
       const submitScore = async () => {
         try {
-          await fetch('/api/leaderboard', {
+          await fetch('https://frontend-detective-test.onrender.com/api/leaderboard', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
