@@ -9,6 +9,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import AuthModal from './AuthModal';
 import LeaderboardModal from './LeaderboardModal';
+import HostScreen from './HostScreen';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -546,8 +547,16 @@ function StartScreen({
         maskImage: 'radial-gradient(circle at 50% 50%, black 40%, transparent 80%)'
       }} />
 
-      {/* Top Header Bar for Login & Leaderboard */}
+      {/* Top Header Bar for Login & Leaderboard & Host Mode */}
       <div className="fixed top-4 right-6 z-[60] flex items-center space-x-3 font-mono text-xs">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-host-mode'))}
+          className="bg-indigo-900/80 hover:bg-indigo-900 text-indigo-100 border border-indigo-500 shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+        >
+          <MonitorPlay className="w-4 h-4" />
+          <span className="hidden md:inline">Host Mode</span>
+        </button>
+
         <button
           onClick={onOpenLeaderboard}
           className="bg-white/80 hover:bg-white text-slate-900 border border-slate-300 hover:border-[#f59e0b] shadow-lg backdrop-blur-md px-4 py-2 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
@@ -900,6 +909,13 @@ export default function App() {
   // Auth & Leaderboard Modal States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isHostMode, setIsHostMode] = useState(false);
+
+  useEffect(() => {
+    const handleHostMode = () => setIsHostMode(true);
+    window.addEventListener('open-host-mode', handleHostMode);
+    return () => window.removeEventListener('open-host-mode', handleHostMode);
+  }, []);
 
   const handleStart = (diff: any) => {
     setSelectedDifficulty(diff);
@@ -937,9 +953,10 @@ export default function App() {
       {/* Global Modals */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
+      {isHostMode && <HostScreen onExit={() => setIsHostMode(false)} />}
 
       <AnimatePresence mode="wait">
-        {!isPlaying && !isGameOver && !isVictory && !showTutorial ? (
+        {!isPlaying && !isGameOver && !isVictory && !showTutorial && !isHostMode ? (
           <motion.div key="start" exit={{ opacity: 0, scale: 1.1 }}>
             <StartScreen
               onStart={handleStart}
