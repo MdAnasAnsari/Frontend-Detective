@@ -46,20 +46,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       formData.append('Branch', branch);
       formData.append('Email', email);
       formData.append('Contact', contact);
-      formData.append('Avatar', avatar);
-      formData.append('Timestamp', new Date().toISOString());
-
       // Google Apps Script Web App URL
       const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxJahyx1HnIOfW1evXqsigFvbzL-4Q0oQPl3tWqAywCb9gSJVmsMLlcIM1YKn5NDY/exec';
       
-      // If the URL hasn't been set yet, just mock the success so testing still works
-      if (GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE') {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          body: formData,
-          mode: 'no-cors' // Required to prevent CORS errors when sending to Google Script
-        });
-      }
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: formData,
+        mode: 'no-cors' // Required to prevent CORS errors when sending to Google Script
+      });
 
       // Automatically log them in since Google Sheets 'no-cors' mode doesn't return a readable response
       const localUser = {
