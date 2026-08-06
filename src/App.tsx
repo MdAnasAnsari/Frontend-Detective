@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, Trophy, LogIn, MonitorPlay } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, LogIn } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import AuthModal from './AuthModal';
-import LeaderboardModal from './LeaderboardModal';
-import HostScreen from './HostScreen';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -17,7 +15,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
-function HUD({ onOpenAuth, onOpenLeaderboard }: { onOpenAuth: () => void; onOpenLeaderboard: () => void }) {
+function HUD({ onOpenAuth }: { onOpenAuth: () => void; }) {
   const { attemptsLeft, timeLeft, xp, difficulty, combo, errors, user } = useGameStore();
   const foundErrors = errors.filter(e => e.fixed).length;
   const totalErrors = errors.length;
@@ -82,14 +80,7 @@ function HUD({ onOpenAuth, onOpenLeaderboard }: { onOpenAuth: () => void; onOpen
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2 pointer-events-auto">
-            <button
-              onClick={onOpenLeaderboard}
-              className="px-3 py-1.5 bg-[#f59e0b]/10 border border-[#f59e0b]/40 hover:bg-[#f59e0b]/20 text-[#f59e0b] text-xs font-bold font-mono rounded flex items-center space-x-1.5 transition-colors shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-              title="Global Leaderboard"
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">LEADERBOARD</span>
-            </button>
+
 
             <button
               onClick={onOpenAuth}
@@ -493,11 +484,9 @@ function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
 function StartScreen({
   onStart,
   onOpenAuth,
-  onOpenLeaderboard,
 }: {
   onStart: (diff: any) => void;
   onOpenAuth: () => void;
-  onOpenLeaderboard: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const { user } = useGameStore();
@@ -549,21 +538,6 @@ function StartScreen({
 
       {/* Top Header Bar for Login & Leaderboard & Host Mode */}
       <div className="fixed top-4 right-4 md:right-6 z-[60] flex items-center space-x-2 md:space-x-3 font-mono text-xs">
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-host-mode'))}
-          className="bg-indigo-900/80 hover:bg-indigo-900 text-indigo-100 border border-indigo-500 shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
-        >
-          <MonitorPlay className="w-4 h-4" />
-          <span className="hidden md:inline">Host Mode</span>
-        </button>
-
-        <button
-          onClick={onOpenLeaderboard}
-          className="bg-white/80 hover:bg-white text-slate-900 border border-slate-300 hover:border-[#f59e0b] shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
-        >
-          <Trophy className="w-4 h-4 text-[#f59e0b]" />
-          <span className="hidden sm:inline">Leaderboard</span>
-        </button>
 
         <button
           onClick={onOpenAuth}
@@ -812,36 +786,13 @@ function StartScreen({
   );
 }
 
-function EndScreen({ isVictory, onOpenLeaderboard }: { isVictory: boolean; onOpenLeaderboard: () => void }) {
-  const { xp, timeLeft, difficulty, user, resetGame } = useGameStore();
+function EndScreen({ isVictory }: { isVictory: boolean; }) {
+  const { xp, timeLeft, difficulty, resetGame } = useGameStore();
   const timeOut = timeLeft <= 0;
-  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    // Automatically submit score to backend leaderboard if user earned XP
-    if (xp > 0 && !submitted) {
-      const submitScore = async () => {
-        try {
-          await fetch('https://frontend-detective-test.onrender.com/api/leaderboard', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username: user ? user.username : 'Guest Agent',
-              avatar: user ? user.avatar : '🕵️',
-              xp,
-              difficulty,
-              timeLeft,
-              userId: user ? user.id : undefined,
-            }),
-          });
-          setSubmitted(true);
-        } catch (e) {
-          console.warn('Leaderboard score submit warning:', e);
-        }
-      };
-      submitScore();
-    }
-  }, [xp, difficulty, timeLeft, user, submitted]);
+    // Leaderboard removed
+  }, [xp, difficulty, timeLeft]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-indigo-950/80 backdrop-blur-md p-6 crt-flicker">
@@ -880,14 +831,6 @@ function EndScreen({ isVictory, onOpenLeaderboard }: { isVictory: boolean; onOpe
 
         <div className="space-y-3">
           <button 
-            onClick={onOpenLeaderboard}
-            className="w-full py-3 bg-[#f59e0b]/20 text-[#f59e0b] border border-[#f59e0b]/50 hover:bg-[#f59e0b]/30 font-mono font-bold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 transition-colors"
-          >
-            <Trophy className="w-4 h-4" />
-            <span>VIEW LEADERBOARD</span>
-          </button>
-
-          <button 
             onClick={resetGame}
             className="w-full py-4 cyber-button"
             style={{ borderColor: isVictory ? '#06b6d4' : '#f43f5e', color: isVictory ? '#06b6d4' : '#f43f5e', boxShadow: `0 0 10px ${isVictory ? 'rgba(0,255,136,0.2)' : 'rgba(255,0,85,0.2)'}` }}
@@ -901,23 +844,19 @@ function EndScreen({ isVictory, onOpenLeaderboard }: { isVictory: boolean; onOpe
 }
 
 export default function App() {
-  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, useHint, hintTargetId, difficulty } = useGameStore();
+  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, useHint, hintTargetId, difficulty, user } = useGameStore();
   const [magnifier, setMagnifier] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<any>(null);
 
-  // Auth & Leaderboard Modal States
+  // Auth Modal State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isHostMode, setIsHostMode] = useState(false);
-
-  useEffect(() => {
-    const handleHostMode = () => setIsHostMode(true);
-    window.addEventListener('open-host-mode', handleHostMode);
-    return () => window.removeEventListener('open-host-mode', handleHostMode);
-  }, []);
 
   const handleStart = (diff: any) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
     setSelectedDifficulty(diff);
     setShowTutorial(true);
   };
@@ -952,16 +891,13 @@ export default function App() {
     )}>
       {/* Global Modals */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
-      <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
-      {isHostMode && <HostScreen onExit={() => setIsHostMode(false)} />}
 
       <AnimatePresence mode="wait">
-        {!isPlaying && !isGameOver && !isVictory && !showTutorial && !isHostMode ? (
+        {!isPlaying && !isGameOver && !isVictory && !showTutorial ? (
           <motion.div key="start" exit={{ opacity: 0, scale: 1.1 }}>
             <StartScreen
               onStart={handleStart}
               onOpenAuth={() => setIsAuthOpen(true)}
-              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             />
           </motion.div>
         ) : (
@@ -971,7 +907,6 @@ export default function App() {
 
             <HUD
               onOpenAuth={() => setIsAuthOpen(true)}
-              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             />
             
             <div className="fixed bottom-16 right-6 z-50 flex space-x-3">
@@ -1025,7 +960,6 @@ export default function App() {
               {(isGameOver || isVictory) && (
                 <EndScreen
                   isVictory={isVictory}
-                  onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
                 />
               )}
             </AnimatePresence>

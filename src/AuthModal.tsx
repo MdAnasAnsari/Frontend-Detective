@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Mail, ShieldCheck, LogOut, Award, Zap, Trophy, Hash, Phone, Building2 } from 'lucide-react';
+import { X, User, Mail, ShieldCheck, LogOut, Zap, Trophy, Hash, Phone, Building2 } from 'lucide-react';
 import { useGameStore } from './store';
 
 interface AuthModalProps {
@@ -30,6 +30,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+
   if (!isOpen) return null;
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -38,47 +39,48 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('https://frontend-detective-test.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          uid,
-          branch,
-          email,
-          contact,
-          avatar
-        }),
-      });
+      // Create FormData to send to Google Sheets
+      const formData = new FormData();
+      formData.append('Name', name);
+      formData.append('UID', uid);
+      formData.append('Branch', branch);
+      formData.append('Email', email);
+      formData.append('Contact', contact);
+      formData.append('Avatar', avatar);
+      formData.append('Timestamp', new Date().toISOString());
 
-      const data = await res.json();
+      // Google Apps Script Web App URL
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxJahyx1HnIOfW1evXqsigFvbzL-4Q0oQPl3tWqAywCb9gSJVmsMLlcIM1YKn5NDY/exec';
       
-      if (!res.ok) {
-        throw new Error(data.error || 'Registration failed');
+      // If the URL hasn't been set yet, just mock the success so testing still works
+      if (GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE') {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          body: formData,
+          mode: 'no-cors' // Required to prevent CORS errors when sending to Google Script
+        });
       }
 
-      setToken(data.token);
-      setUser(data.user);
+      // Automatically log them in since Google Sheets 'no-cors' mode doesn't return a readable response
+      const localUser = {
+        id: `agent-${Date.now()}`,
+        username: name,
+        email,
+        avatar,
+        badge: 'Rookie Detective',
+        totalXp: 0,
+        gamesPlayed: 0,
+        victories: 0
+      };
+      
+      setUser(localUser);
+      setToken(`sheet-token-${Date.now()}`);
       setMode('profile');
+      onClose(); // Automatically close the modal so the user can start playing
       
     } catch (err: any) {
-      setError(err.message);
-      // Fallback to local storage if API fails
-      if (err.message === 'Failed to fetch') {
-        const dummyUser = {
-          id: `local-${Date.now()}`,
-          username: name,
-          email,
-          avatar,
-          badge: 'Rookie Detective',
-          totalXp: 0,
-          gamesPlayed: 0,
-          victories: 0
-        };
-        setUser(dummyUser);
-        setToken(`dummy-token-${Date.now()}`);
-        setMode('profile');
-      }
+      console.error('Error submitting to Google Sheets:', err);
+      setError('Connection failed. Please try again.');
     } finally {
       setLoading(false);
     }

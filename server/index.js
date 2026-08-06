@@ -41,17 +41,7 @@ const userSchema = new mongoose.Schema({
   victories: { type: Number, default: 0 }
 });
 
-const leaderboardSchema = new mongoose.Schema({
-  username: { type: String, required: true },
-  avatar: { type: String, default: '🕵️' },
-  xp: { type: Number, required: true },
-  difficulty: { type: String, default: 'Demo' },
-  timeLeft: { type: Number, default: 0 },
-  date: { type: Date, default: Date.now }
-});
-
 const User = mongoose.model('User', userSchema);
-const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // Auth Routes
 app.post('/api/auth/register', async (req, res) => {
@@ -80,6 +70,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+
 app.get('/api/auth/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -100,53 +91,7 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-// Leaderboard Routes
-app.get('/api/leaderboard', async (req, res) => {
-  try {
-    const leaderboard = await Leaderboard.find().sort({ xp: -1 }).limit(50);
-    return res.json(leaderboard);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error fetching leaderboard' });
-  }
-});
 
-app.post('/api/leaderboard', async (req, res) => {
-  try {
-    const { username, avatar, xp, difficulty, timeLeft, userId } = req.body;
-    if (!username || xp === undefined) {
-      return res.status(400).json({ error: 'Missing entry details' });
-    }
-
-    const newEntry = new Leaderboard({ username, avatar, xp, difficulty, timeLeft });
-    await newEntry.save();
-
-    if (userId) {
-      // Validate that userId is a valid MongoDB ObjectId
-      if (mongoose.Types.ObjectId.isValid(userId)) {
-        const user = await User.findById(userId);
-        if (user) {
-          user.totalXp += xp;
-          user.gamesPlayed += 1;
-          user.victories += 1;
-
-          if (user.totalXp >= 4000) user.badge = 'Chief Detective';
-          else if (user.totalXp >= 2500) user.badge = 'Senior Bug Hunter';
-          else if (user.totalXp >= 1000) user.badge = 'Inspector';
-          else user.badge = 'Rookie Detective';
-
-          await user.save();
-        }
-      }
-    }
-
-    const top50 = await Leaderboard.find().sort({ xp: -1 }).limit(50);
-    return res.json({ success: true, leaderboard: top50 });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error updating leaderboard' });
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`Backend Server running on port ${PORT}`);

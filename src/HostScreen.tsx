@@ -68,17 +68,17 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
       <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
         
         {/* Left: Join Instructions (QR) */}
-        <div className="w-full lg:w-1/3 p-8 flex flex-col items-center justify-center bg-black/40 border-r border-white/10">
-          <div className="bg-indigo-600/20 border border-indigo-500/50 rounded-3xl p-10 flex flex-col items-center text-center shadow-[0_0_50px_rgba(99,102,241,0.2)]">
+        <div className="w-full lg:w-1/3 p-4 md:p-8 flex flex-col items-center justify-center bg-black/40 border-r border-white/10">
+          <div className="bg-indigo-600/20 w-full max-w-sm mx-auto border border-indigo-500/50 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-[0_0_50px_rgba(99,102,241,0.2)]">
             <QrCode className="w-12 h-12 text-indigo-400 mb-6" />
             <h2 className="text-3xl font-bold mb-2">Join the Mission!</h2>
             <p className="text-white/60 font-mono mb-8">Scan to participate live</p>
             
-            <div className="bg-white p-4 rounded-xl shadow-2xl mb-8">
-              <img src={qrUrl} alt="Join QR Code" className="w-64 h-64 object-contain rounded-lg" />
+            <div className="bg-white p-4 rounded-xl shadow-2xl mb-8 flex items-center justify-center">
+              <img src={qrUrl} alt="Join QR Code" className="w-full max-w-[200px] md:max-w-[250px] aspect-square object-contain rounded-lg" />
             </div>
             
-            <div className="text-xl font-mono text-white/80 bg-black/50 px-6 py-3 rounded-xl border border-white/10">
+            <div className="text-lg md:text-xl font-mono text-white/80 bg-black/50 px-4 py-3 rounded-xl border border-white/10 w-full break-all">
               {joinUrl.replace(/^https?:\/\//, '')}
             </div>
           </div>
