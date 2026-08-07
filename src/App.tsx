@@ -59,8 +59,8 @@ function HUD({ onOpenAuth }: { onOpenAuth: () => void; }) {
 
             <div className="flex flex-col items-end">
               <span className="text-[10px] text-[#10b981]/70 uppercase tracking-widest mb-0.5">Uplink Time</span>
-              <div className={cn("text-lg font-bold", timeLeft <= 10 ? "text-[#f43f5e] animate-pulse" : "text-[#10b981]")}>
-                0:{timeLeft.toString().padStart(2, '0')}
+              <div className="text-lg font-bold text-[#10b981]">
+                UNLIMITED
               </div>
             </div>
 
@@ -456,10 +456,9 @@ function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
 
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h3 className="text-[#10b981] font-mono text-lg mb-2">3. The Clock</h3>
+              <h3 className="text-[#10b981] font-mono text-lg mb-2">3. The Mission</h3>
               <p className="text-[#e5e1e4]/80 font-mono text-sm leading-relaxed mb-6">
-                You are on the clock. Fix all bugs before the <strong>Uplink Time</strong> runs out. 
-                Chain fixes together quickly to earn a higher <strong>Bounty Multiplier</strong>.
+                Take your time to investigate. The time limit has been removed, but chaining fixes together quickly still earns a higher <strong>Bounty Multiplier</strong>.
               </p>
               <div className="flex justify-between items-center">
                 <button onClick={() => setStep(2)} className="text-[#e5e1e4]/50 hover:text-white font-mono text-sm uppercase">Back</button>
@@ -719,10 +718,10 @@ function StartScreen({
           <div className="flex flex-col w-full border-t-[3px] border-slate-900/10">
             {(['Demo', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
               const theme = [
-                { title: "Demo", desc: "Demo Level (Introductory)", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "60s" },
-                { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "45s" },
-                { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "30s" },
-                { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "15s" }
+                { title: "Demo", desc: "Demo Level (Introductory)", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "Unlimited" },
+                { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "Unlimited" },
+                { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "Unlimited" },
+                { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "Unlimited" }
               ][i];
               
               return (
@@ -825,7 +824,7 @@ function EndScreen({ isVictory }: { isVictory: boolean; }) {
           </div>
           <div className="bg-black/50 border border-[#10b981]/30 p-4">
             <div className="text-[10px] text-[#10b981]/80 uppercase tracking-widest mb-1">Time Left</div>
-            <div className="text-2xl font-bold text-[#10b981]">0:{timeLeft.toString().padStart(2, '0')}</div>
+            <div className="text-2xl font-bold text-[#10b981]">UNLIMITED</div>
           </div>
         </div>
 

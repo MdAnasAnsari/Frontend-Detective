@@ -175,13 +175,8 @@ export const useGameStore = create<GameState>((set) => ({
   tick: () => {
     set((state) => {
       if (!state.isPlaying) return state;
-      const newTime = state.timeLeft - 1;
-      const isGameOver = newTime <= 0;
-      return {
-        timeLeft: newTime,
-        isGameOver: isGameOver ? true : state.isGameOver,
-        isPlaying: isGameOver ? false : state.isPlaying,
-      };
+      // Time limits removed
+      return state;
     });
   },
 
