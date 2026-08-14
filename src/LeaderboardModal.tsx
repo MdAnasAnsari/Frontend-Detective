@@ -46,6 +46,8 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
           { id: '1', username: 'GarvitBhutani', avatar: '🕵️‍♂️', xp: 1250, difficulty: 'Nightmare', timeLeft: 8, date: new Date().toISOString() },
           { id: '2', username: 'CyberNinja', avatar: '🥷', xp: 950, difficulty: 'Hard', timeLeft: 12, date: new Date().toISOString() },
           { id: '3', username: 'CodeSherlock', avatar: '🔎', xp: 750, difficulty: 'Medium', timeLeft: 22, date: new Date().toISOString() },
+          { id: '4', username: 'DemoMaster', avatar: '⚡', xp: 600, difficulty: 'Demo', timeLeft: 45, date: new Date().toISOString() },
+          { id: '5', username: 'PixelRookie', avatar: '👾', xp: 450, difficulty: 'Demo', timeLeft: 30, date: new Date().toISOString() },
         ]);
       }
     } finally {
@@ -118,7 +120,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
 
           <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto">
             <span className="text-white/40 uppercase font-bold">Scope:</span>
-            {['All', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
+            {['All', 'Demo', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
               <button
                 key={diff}
                 onClick={() => setFilterDiff(diff)}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, LogIn, Trophy } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, LogIn, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
@@ -169,6 +169,81 @@ function MistakeElement({ id, children, className }: { id: string, children: Rea
   );
 }
 
+function SaasLayout() {
+  const { missClick, isPlaying, errors } = useGameStore();
+
+  const handlePageClick = () => {
+    if (isPlaying) {
+      missClick();
+    }
+  };
+
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6 flex justify-center items-center" onClick={handlePageClick}>
+      
+      {/* Central Viewport framing */}
+      <div className="relative w-full max-w-5xl bracket-corner p-2">
+        <div className="absolute -top-6 left-4 text-[#10b981] font-mono text-xs flex items-center space-x-2">
+          <Maximize2 className="w-3 h-3" />
+          <span>DEMO LEVEL // VIEWPORT 1</span>
+        </div>
+        
+        <div className="glass-panel p-10 bg-slate-900/60 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative border-t-[#f59e0b] border-r-[#6366f1] border-b-[#f43f5e] border-l-[#10b981] border-2">
+          
+          <div className="text-center max-w-3xl mx-auto mb-20 relative z-10">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center space-x-2 bg-[#06b6d4]/10 text-[#06b6d4] px-4 py-1.5 mb-8 font-mono text-xs border border-[#06b6d4]/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,255,136,0.2)]">
+              <span className="w-1.5 h-1.5 bg-[#06b6d4] animate-pulse"></span>
+              <span>DEMO MODE ONLINE</span>
+            </motion.div>
+            
+            <MistakeElement id={errors[3]?.id || 'err-4'} className="mb-6">
+              <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                Perfect the layout.
+              </h1>
+            </MistakeElement>
+            
+            <p className="text-lg text-[#e5e1e4]/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+              Detect anomalies in the Document Object Model. Ensure all components meet the strict visual guidelines of modern web design.
+            </p>
+            
+            <div className="flex items-center justify-center space-x-6">
+              <MistakeElement id={errors[0]?.id || 'err-1'}>
+                <button className="bg-gradient-to-r from-[#f59e0b] to-[#6366f1] text-white font-bold font-mono tracking-widest shadow-[0_0_15px_#6366f1] hover:shadow-[0_0_25px_#f59e0b] transition-all cursor-crosshair border-none">
+                  DEPLOY
+                </button>
+              </MistakeElement>
+              
+              <MistakeElement id={errors[4]?.id || 'err-5'}>
+                <button className="font-mono tracking-widest text-[#10b981] border border-[#10b981]/50 hover:bg-[#10b981]/20 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#10b981]/20 duration-300 transition-all transition-all cursor-crosshair px-6 py-3 shadow-[0_0_10px_rgba(255,170,0,0.1)]">
+                  VIEW CONSOLE
+                </button>
+              </MistakeElement>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+            {[1, 2, 3].map((i) => (
+              <MistakeElement id={i === 2 ? (errors[2]?.id || 'err-3') : `no-err-${i}`} key={i} className={i !== 2 ? 'rounded-none' : ''}>
+                <div className="bg-[#06050b]/60 border border-[#6366f1]/30 p-6 h-full backdrop-blur-md group hover:border-[#f43f5e] hover:-translate-y-3 hover:shadow-2xl duration-300 transition-all transition-colors shadow-lg">
+                  <MistakeElement id={i === 1 ? (errors[1]?.id || 'err-2') : `no-icon-err-${i}`}>
+                    <div className="w-10 h-10 bg-[#10b981]/10 text-[#10b981] flex items-center justify-center mb-5 border border-[#10b981]/40 group-hover:bg-[#f43f5e]/20 group-hover:text-[#f43f5e] transition-colors">
+                      <ShieldAlert className="w-5 h-5" />
+                    </div>
+                  </MistakeElement>
+                  <h3 className="text-lg font-bold mb-2 text-white group-hover:text-[#f59e0b] transition-colors">Component State</h3>
+                  <p className="text-[#e5e1e4]/60 text-sm leading-relaxed font-mono">
+                    Advanced React lifecycle protection. Re-renders are isolated and optimized for maximum framerate.
+                  </p>
+                </div>
+              </MistakeElement>
+            ))}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MediumLayout() {
   const { missClick, isPlaying, errors } = useGameStore();
@@ -651,11 +726,12 @@ function StartScreen({
           </div>
           
           <div className="flex flex-col w-full border-t-[3px] border-slate-900/10">
-            {(['Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
+            {(['Demo', 'Medium', 'Hard', 'Nightmare'] as const).map((diff, i) => {
               const theme = [
-                { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "45s" },
-                { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "30s" },
-                { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "15s" }
+                { title: "Demo", desc: "Demo Level (Introductory)", accent: "text-blue-600", bg: "hover:bg-blue-50", borderHover: "hover:border-blue-300", time: "Unlimited" },
+                { title: "Medium", desc: "Mid-Level Developer", accent: "text-emerald-600", bg: "hover:bg-emerald-50", borderHover: "hover:border-emerald-300", time: "Unlimited" },
+                { title: "Hard", desc: "Senior Developer", accent: "text-purple-600", bg: "hover:bg-purple-50", borderHover: "hover:border-purple-300", time: "Unlimited" },
+                { title: "Nightmare", desc: "Principal Engineer", accent: "text-rose-600", bg: "hover:bg-rose-50", borderHover: "hover:border-rose-300", time: "Unlimited" }
               ][i];
               
               return (
@@ -669,7 +745,7 @@ function StartScreen({
                       0{i + 1}
                     </span>
                     <h3 className="text-5xl md:text-7xl font-black text-slate-900 transition-all uppercase tracking-tight">
-                      {diff}
+                      {diff === 'Demo' ? 'Demo Level' : diff}
                     </h3>
                   </div>
                   
@@ -882,7 +958,7 @@ export default function App() {
               </button>
             </div>
 
-
+            {difficulty === 'Demo' && <SaasLayout />}
             {difficulty === 'Medium' && <MediumLayout />}
             {difficulty === 'Hard' && <HardLayout />}
             {difficulty === 'Nightmare' && <NightmareLayout />}

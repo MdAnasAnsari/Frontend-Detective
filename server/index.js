@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 const scoreSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: String, required: true },
   username: { type: String, required: true },
   avatar: { type: String, default: '🕵️' },
   xp: { type: Number, required: true },
@@ -124,10 +124,16 @@ app.post('/api/leaderboard', async (req, res) => {
 
     await newScore.save();
 
-    // Optionally update user's total XP and stats
-    await User.findByIdAndUpdate(userId, {
-      $inc: { totalXp: xp, gamesPlayed: 1, victories: 1 }
-    });
+    // Optionally update user's total XP and stats if the user exists in DB
+    try {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        await User.findByIdAndUpdate(userId, {
+          $inc: { totalXp: xp, gamesPlayed: 1, victories: 1 }
+        });
+      }
+    } catch (e) {
+      console.log('Skipping User update for local agent ID');
+    }
 
     res.json({ message: 'Score saved successfully' });
   } catch (err) {
