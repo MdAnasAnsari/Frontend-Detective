@@ -120,7 +120,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
 
           <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto">
             <span className="text-white/40 uppercase font-bold">Scope:</span>
-            {['All', 'Demo', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
+            {['All', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
               <button
                 key={diff}
                 onClick={() => setFilterDiff(diff)}
