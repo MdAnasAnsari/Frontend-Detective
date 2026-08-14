@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from './store';
-import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, LogIn } from 'lucide-react';
+import { Terminal, Crosshair, Cpu, ShieldAlert, Wifi, Battery, Maximize2, Info, ChevronRight, X, Search, ShieldCheck, ShoppingCart, Star, BarChart2, Activity, Settings, User, Users, LogIn, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import AuthModal from './AuthModal';
+import LeaderboardModal from './LeaderboardModal';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -59,8 +60,8 @@ function HUD({ onOpenAuth }: { onOpenAuth: () => void; }) {
 
             <div className="flex flex-col items-end">
               <span className="text-[10px] text-[#10b981]/70 uppercase tracking-widest mb-0.5">Uplink Time</span>
-              <div className="text-lg font-bold text-[#10b981]">
-                UNLIMITED
+              <div className={cn("text-lg font-bold", timeLeft <= 10 ? "text-red-500 animate-pulse" : "text-[#10b981]")}>
+                {timeLeft}s
               </div>
             </div>
 
@@ -483,9 +484,11 @@ function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
 function StartScreen({
   onStart,
   onOpenAuth,
+  onOpenLeaderboard,
 }: {
   onStart: (diff: any) => void;
   onOpenAuth: () => void;
+  onOpenLeaderboard: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const { user } = useGameStore();
@@ -537,6 +540,13 @@ function StartScreen({
 
       {/* Top Header Bar for Login & Leaderboard & Host Mode */}
       <div className="fixed top-4 right-4 md:right-6 z-[60] flex items-center space-x-2 md:space-x-3 font-mono text-xs">
+        <button
+          onClick={onOpenLeaderboard}
+          className="bg-slate-900/80 border border-[#f59e0b]/50 hover:bg-[#f59e0b]/20 text-[#f59e0b] shadow-lg backdrop-blur-md px-3 py-2 md:px-4 rounded-full font-bold uppercase tracking-wider flex items-center space-x-2 transition-all hover:scale-105"
+        >
+          <Trophy className="w-4 h-4" />
+          <span className="hidden sm:inline">Leaderboard</span>
+        </button>
 
         <button
           onClick={onOpenAuth}
@@ -786,12 +796,28 @@ function StartScreen({
 }
 
 function EndScreen({ isVictory }: { isVictory: boolean; }) {
-  const { xp, timeLeft, difficulty, resetGame } = useGameStore();
+  const { xp, timeLeft, difficulty, resetGame, user } = useGameStore();
   const timeOut = timeLeft <= 0;
 
   useEffect(() => {
-    // Leaderboard removed
-  }, [xp, difficulty, timeLeft]);
+    if (isVictory && user) {
+      // Submit score
+      fetch('https://frontend-detective-test.onrender.com/api/leaderboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.username,
+          avatar: user.avatar,
+          xp,
+          difficulty,
+          timeLeft
+        }),
+      }).catch(err => console.error("Failed to submit score", err));
+    }
+  }, [xp, difficulty, timeLeft, isVictory, user]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-indigo-950/80 backdrop-blur-md p-6 crt-flicker">
@@ -824,7 +850,7 @@ function EndScreen({ isVictory }: { isVictory: boolean; }) {
           </div>
           <div className="bg-black/50 border border-[#10b981]/30 p-4">
             <div className="text-[10px] text-[#10b981]/80 uppercase tracking-widest mb-1">Time Left</div>
-            <div className="text-2xl font-bold text-[#10b981]">UNLIMITED</div>
+            <div className="text-2xl font-bold text-[#10b981]">{timeLeft}s</div>
           </div>
         </div>
 
@@ -850,6 +876,7 @@ export default function App() {
 
   // Auth Modal State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
   const handleStart = (diff: any) => {
     if (!user) {
@@ -890,6 +917,7 @@ export default function App() {
     )}>
       {/* Global Modals */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
 
       <AnimatePresence mode="wait">
         {!isPlaying && !isGameOver && !isVictory && !showTutorial ? (
@@ -897,6 +925,7 @@ export default function App() {
             <StartScreen
               onStart={handleStart}
               onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             />
           </motion.div>
         ) : (

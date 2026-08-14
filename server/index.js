@@ -43,6 +43,18 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+const scoreSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  username: { type: String, required: true },
+  avatar: { type: String, default: '🕵️' },
+  xp: { type: Number, required: true },
+  difficulty: { type: String, required: true },
+  timeLeft: { type: Number, required: true },
+  date: { type: Date, default: Date.now }
+});
+
+const Score = mongoose.model('Score', scoreSchema);
+
 // Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -91,6 +103,62 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
+
+// Leaderboard Routes
+app.post('/api/leaderboard', async (req, res) => {
+  try {
+    const { userId, username, avatar, xp, difficulty, timeLeft } = req.body;
+    
+    if (!userId || !username || xp === undefined || !difficulty || timeLeft === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const newScore = new Score({
+      userId,
+      username,
+      avatar: avatar || '🕵️',
+      xp,
+      difficulty,
+      timeLeft
+    });
+
+    await newScore.save();
+
+    // Optionally update user's total XP and stats
+    await User.findByIdAndUpdate(userId, {
+      $inc: { totalXp: xp, gamesPlayed: 1, victories: 1 }
+    });
+
+    res.json({ message: 'Score saved successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save score' });
+  }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    // Top scores per difficulty, sorted by xp DESC, then timeLeft DESC
+    const scores = await Score.find()
+      .sort({ xp: -1, timeLeft: -1 })
+      .limit(100);
+      
+    const formattedScores = scores.map(s => ({
+      id: s._id,
+      username: s.username,
+      avatar: s.avatar,
+      xp: s.xp,
+      difficulty: s.difficulty,
+      timeLeft: s.timeLeft,
+      date: s.date
+    }));
+
+    res.json(formattedScores);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
 
 
 app.listen(PORT, () => {
