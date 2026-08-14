@@ -28,7 +28,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const res = await fetch('https://frontend-detective-test.onrender.com/api/leaderboard');
+      const res = await fetch('/api/leaderboard');
       if (res.ok) {
         const data = await res.json();
         setEntries(data);

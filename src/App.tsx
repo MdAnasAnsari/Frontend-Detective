@@ -726,7 +726,7 @@ function EndScreen({ isVictory }: { isVictory: boolean; }) {
   useEffect(() => {
     if (isVictory && user) {
       // Submit score
-      fetch('https://frontend-detective-test.onrender.com/api/leaderboard', {
+      fetch('/api/leaderboard', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
