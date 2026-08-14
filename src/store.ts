@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Difficulty = 'Demo' | 'Medium' | 'Hard' | 'Nightmare';
+export type Difficulty = 'Medium' | 'Hard' | 'Nightmare';
 
 export interface GameError {
   id: string;
@@ -52,13 +52,6 @@ interface GameState {
   useHint: () => void;
 }
 
-const DEMO_ERRORS: GameError[] = [
-  { id: 'err-1', description: 'Uneven button padding', points: 100, fixed: false, errorClass: 'px-2 py-4', fixedClass: 'px-6 py-3' },
-  { id: 'err-2', description: 'Misaligned icon', points: 100, fixed: false, errorClass: '-mt-2', fixedClass: 'mt-0' },
-  { id: 'err-3', description: 'Different border radius on one card', points: 100, fixed: false, errorClass: 'rounded-sm', fixedClass: 'rounded-2xl' },
-  { id: 'err-4', description: 'Incorrect font weight in heading', points: 100, fixed: false, errorClass: 'font-light', fixedClass: 'font-bold' },
-  { id: 'err-5', description: 'Wrong primary button color', points: 100, fixed: false, errorClass: 'bg-blue-400', fixedClass: 'bg-blue-600' },
-];
 
 const MEDIUM_ERRORS: GameError[] = [
   { id: 'med-err-1', description: 'Incorrect flex direction', points: 150, fixed: false, errorClass: 'flex-row', fixedClass: 'flex-col md:flex-row' },
@@ -97,7 +90,7 @@ export const useGameStore = create<GameState>((set) => ({
   timeLeft: 60,
   xp: 0,
   combo: 0,
-  difficulty: 'Demo',
+  difficulty: 'Medium',
   theme: 'SaaS',
   errors: [],
   hintsLeft: 1,
@@ -125,8 +118,8 @@ export const useGameStore = create<GameState>((set) => ({
   },
 
   startGame: (difficulty: Difficulty) => {
-    const timeLimits = { Demo: 60, Medium: 45, Hard: 30, Nightmare: 15 };
-    const errorsMap = { Demo: DEMO_ERRORS, Medium: MEDIUM_ERRORS, Hard: HARD_ERRORS, Nightmare: NIGHTMARE_ERRORS };
+    const timeLimits = { Medium: 45, Hard: 30, Nightmare: 15 };
+    const errorsMap = { Medium: MEDIUM_ERRORS, Hard: HARD_ERRORS, Nightmare: NIGHTMARE_ERRORS };
     
     set({
       isPlaying: true,
