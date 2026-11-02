@@ -1,7 +1,7 @@
 {
-  "name": "nexasoul-project-1",
+  "name": "frontend-detective",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

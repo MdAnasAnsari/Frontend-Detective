@@ -1,0 +1,247 @@
+[
+  {
+    "id": "case-demo",
+    "title": "SaaS Landing Page Audit",
+    "difficulty": "Demo",
+    "layoutType": "SaaS",
+    "roleTitle": "Junior UI Detective (Introductory)",
+    "timeLimit": 60,
+    "attemptsLimit": 10,
+    "author": "GarvitBhutani",
+    "isOfficial": true,
+    "errors": [
+      {
+        "id": "err-1",
+        "description": "Uneven button padding",
+        "category": "Spacing",
+        "points": 100,
+        "errorClass": "px-2 py-4",
+        "fixedClass": "px-6 py-3",
+        "explanation": "Horizontal padding (px-2) was narrower than vertical padding (py-4), violating standard 2:1 CTA button aspect ratios."
+      },
+      {
+        "id": "err-2",
+        "description": "Misaligned icon container",
+        "category": "Alignment",
+        "points": 100,
+        "errorClass": "-mt-2",
+        "fixedClass": "mt-0",
+        "explanation": "A negative top margin (-mt-2) pulled the icon out of its card baseline grid."
+      },
+      {
+        "id": "err-3",
+        "description": "Inconsistent card border radius",
+        "category": "Border",
+        "points": 100,
+        "errorClass": "rounded-sm",
+        "fixedClass": "rounded-2xl",
+        "explanation": "Card #2 used rounded-sm while sibling cards used consistent geometric framing."
+      },
+      {
+        "id": "err-4",
+        "description": "Incorrect hero heading font weight",
+        "category": "Typography",
+        "points": 100,
+        "errorClass": "font-light",
+        "fixedClass": "font-bold",
+        "explanation": "Display hero headings require high visual weight (font-bold) to establish typographic hierarchy."
+      },
+      {
+        "id": "err-5",
+        "description": "Mismatched secondary button fill",
+        "category": "Color",
+        "points": 100,
+        "errorClass": "bg-blue-400",
+        "fixedClass": "bg-blue-600",
+        "explanation": "Low-contrast blue fill clashed with the emerald ghost button border and text."
+      }
+    ],
+    "notes": [
+      {
+        "id": "note-1",
+        "author": "GarvitBhutani",
+        "role": "admin",
+        "content": "Tip for rookies: Compare sibling cards side-by-side first to spot spacing and border-radius regressions.",
+        "createdAt": "2026-10-15T10:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "case-medium",
+    "title": "Neural E-Commerce Product Render",
+    "difficulty": "Medium",
+    "layoutType": "Ecommerce",
+    "roleTitle": "Mid-Level Frontend Engineer",
+    "timeLimit": 45,
+    "attemptsLimit": 10,
+    "author": "GarvitBhutani",
+    "isOfficial": true,
+    "errors": [
+      {
+        "id": "med-err-1",
+        "description": "Incorrect responsive flex direction",
+        "category": "Layout",
+        "points": 150,
+        "errorClass": "flex-row",
+        "fixedClass": "flex-col md:flex-row",
+        "explanation": "Forcing flex-row on mobile viewports causes horizontal overflow; responsive stacking is required."
+      },
+      {
+        "id": "med-err-2",
+        "description": "Missing hover transition curve",
+        "category": "Interaction",
+        "points": 150,
+        "errorClass": "transition-none",
+        "fixedClass": "transition-all duration-300",
+        "explanation": "Abrupt state changes on primary purchase CTAs degrade perceived polish."
+      },
+      {
+        "id": "med-err-3",
+        "description": "Inconsistent typography tracking",
+        "category": "Typography",
+        "points": 150,
+        "errorClass": "tracking-tight",
+        "fixedClass": "tracking-widest",
+        "explanation": "Uppercase cyber product titles need wider letter-spacing for legibility."
+      },
+      {
+        "id": "med-err-4",
+        "description": "Z-index stacking context clip",
+        "category": "Stacking",
+        "points": 150,
+        "errorClass": "z-0",
+        "fixedClass": "z-50",
+        "explanation": "Review stars were trapped behind ambient blur layers due to z-0."
+      },
+      {
+        "id": "med-err-5",
+        "description": "Broken gradient color stop",
+        "category": "Color",
+        "points": 150,
+        "errorClass": "to-transparent",
+        "fixedClass": "to-[#10b981]",
+        "explanation": "An incomplete gradient stop caused the secondary action button background to fade unevenly."
+      }
+    ],
+    "notes": []
+  },
+  {
+    "id": "case-hard",
+    "title": "Nexus Telemetry Analytics Dashboard",
+    "difficulty": "Hard",
+    "layoutType": "Analytics",
+    "roleTitle": "Senior Frontend Architect",
+    "timeLimit": 30,
+    "attemptsLimit": 10,
+    "author": "CaseArchitect",
+    "isOfficial": true,
+    "errors": [
+      {
+        "id": "hard-err-1",
+        "description": "Alert state color leak in sidebar",
+        "category": "Theming",
+        "points": 200,
+        "errorClass": "bg-red-500/10 text-red-500",
+        "fixedClass": "bg-emerald-500/10 text-emerald-500",
+        "explanation": "Destructive error tokens were applied to the primary navigation rail."
+      },
+      {
+        "id": "hard-err-2",
+        "description": "Unoptimized chart layer blur",
+        "category": "Rendering",
+        "points": 200,
+        "errorClass": "opacity-50 blur-sm",
+        "fixedClass": "opacity-100 blur-none",
+        "explanation": "Stale loading filter (blur-sm opacity-50) remained active on the live telemetry canvas."
+      },
+      {
+        "id": "hard-err-3",
+        "description": "WCAG contrast ratio accessibility failure",
+        "category": "Accessibility",
+        "points": 200,
+        "errorClass": "text-slate-600 bg-slate-700",
+        "fixedClass": "text-white bg-slate-900",
+        "explanation": "Slate-600 text on Slate-700 background yields a 1.3:1 contrast ratio, failing WCAG AA (4.5:1)."
+      },
+      {
+        "id": "hard-err-4",
+        "description": "Missing accessible focus/highlight ring",
+        "category": "Accessibility",
+        "points": 200,
+        "errorClass": "outline-none",
+        "fixedClass": "ring-2 ring-[#f59e0b]",
+        "explanation": "Removing outlines without providing a visible ring indicator breaks keyboard navigation visibility."
+      },
+      {
+        "id": "hard-err-5",
+        "description": "Incorrect CSS box-sizing model",
+        "category": "Box Model",
+        "points": 200,
+        "errorClass": "box-content",
+        "fixedClass": "box-border",
+        "explanation": "Using box-content caused padding and borders to expand the element beyond its fixed 8rem width."
+      }
+    ],
+    "notes": []
+  },
+  {
+    "id": "case-nightmare",
+    "title": "Root Kernel Preferences Override",
+    "difficulty": "Nightmare",
+    "layoutType": "Settings",
+    "roleTitle": "Principal Staff Engineer",
+    "timeLimit": 20,
+    "attemptsLimit": 10,
+    "author": "GarvitBhutani",
+    "isOfficial": true,
+    "errors": [
+      {
+        "id": "night-err-1",
+        "description": "Runaway keyframe animation on avatar",
+        "category": "Animation",
+        "points": 500,
+        "errorClass": "animate-bounce text-red-500",
+        "fixedClass": "animate-none text-[#10b981]",
+        "explanation": "Infinite bounce loop on static profile imagery causes continuous layout repainting."
+      },
+      {
+        "id": "night-err-2",
+        "description": "GPU-heavy shadow bleed on CTA",
+        "category": "Performance",
+        "points": 500,
+        "errorClass": "shadow-[0_0_100px_red]",
+        "fixedClass": "shadow-[0_0_15px_#6366f1]",
+        "explanation": "Oversized 100px red box-shadow bleeds across neighboring DOM nodes and spikes composite time."
+      },
+      {
+        "id": "night-err-3",
+        "description": "Corrupted micro-typography kerning",
+        "category": "Typography",
+        "points": 500,
+        "errorClass": "text-[8px] tracking-[1rem]",
+        "fixedClass": "text-sm tracking-normal",
+        "explanation": "Extreme 1rem tracking with 8px font size makes setting labels unreadable."
+      },
+      {
+        "id": "night-err-4",
+        "description": "Inverted transform matrix on Cancel action",
+        "category": "Transform",
+        "points": 500,
+        "errorClass": "rotate-180 scale-50",
+        "fixedClass": "rotate-0 scale-100",
+        "explanation": "Accidental 180deg rotation and 50% scale shrunk the hit target below 44x44px touch guidelines."
+      },
+      {
+        "id": "night-err-5",
+        "description": "Ghost DOM node (opacity-0 pointer-events-none)",
+        "category": "Visibility",
+        "points": 500,
+        "errorClass": "opacity-0 pointer-events-none",
+        "fixedClass": "opacity-100 pointer-events-auto",
+        "explanation": "Row #2 was hidden in the layout tree while still occupying vertical space."
+      }
+    ],
+    "notes": []
+  }
+]
+

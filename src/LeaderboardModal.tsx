@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Trophy, Medal, Search, Flame, Clock, RefreshCw } from 'lucide-react';
+import { X, Trophy, Medal, Search, Flame, Clock, RefreshCw, Trash2, ShieldAlert } from 'lucide-react';
 import { useGameStore } from './store';
 
 interface LeaderboardModalProps {
@@ -14,16 +14,20 @@ export interface LeaderboardEntry {
   avatar: string;
   xp: number;
   difficulty: string;
+  caseTitle?: string;
+  roomCode?: string | null;
   timeLeft: number;
   date: string;
 }
 
 export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalProps) {
-  const { user } = useGameStore();
+  const { user, token } = useGameStore();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDiff, setFilterDiff] = useState<string>('All');
+
+  const canModerate = user && (user.role === 'admin' || user.role === 'architect');
 
   const fetchLeaderboard = async () => {
     setLoading(true);
@@ -32,26 +36,45 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
       if (res.ok) {
         const data = await res.json();
         setEntries(data);
+        localStorage.setItem('detective_leaderboard', JSON.stringify(data));
       } else {
         throw new Error('Failed to fetch leaderboard');
       }
-    } catch (err) {
-      console.warn('Backend unavailable, using fallback leaderboard data', err);
-      // Fallback local storage or default items
+    } catch {
       const local = localStorage.getItem('detective_leaderboard');
       if (local) {
         setEntries(JSON.parse(local));
       } else {
         setEntries([
-          { id: '1', username: 'GarvitBhutani', avatar: '🕵️‍♂️', xp: 1250, difficulty: 'Nightmare', timeLeft: 8, date: new Date().toISOString() },
-          { id: '2', username: 'CyberNinja', avatar: '🥷', xp: 950, difficulty: 'Hard', timeLeft: 12, date: new Date().toISOString() },
-          { id: '3', username: 'CodeSherlock', avatar: '🔎', xp: 750, difficulty: 'Medium', timeLeft: 22, date: new Date().toISOString() },
-          { id: '4', username: 'DemoMaster', avatar: '⚡', xp: 600, difficulty: 'Demo', timeLeft: 45, date: new Date().toISOString() },
-          { id: '5', username: 'PixelRookie', avatar: '👾', xp: 450, difficulty: 'Demo', timeLeft: 30, date: new Date().toISOString() },
+          { id: 'lb-1', username: 'GarvitBhutani', avatar: '🕵️‍♂️', xp: 1250, difficulty: 'Nightmare', timeLeft: 8, date: new Date().toISOString() },
+          { id: 'lb-2', username: 'CyberNinja', avatar: '🥷', xp: 950, difficulty: 'Hard', timeLeft: 12, date: new Date().toISOString() },
+          { id: 'lb-3', username: 'CodeSherlock', avatar: '🔎', xp: 750, difficulty: 'Medium', timeLeft: 22, date: new Date().toISOString() },
+          { id: 'lb-4', username: 'DemoMaster', avatar: '⚡', xp: 600, difficulty: 'Demo', timeLeft: 45, date: new Date().toISOString() },
+          { id: 'lb-5', username: 'PixelRookie', avatar: '👾', xp: 450, difficulty: 'Demo', timeLeft: 30, date: new Date().toISOString() },
         ]);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      const res = await fetch(`/api/leaderboard/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const updated = entries.filter((e) => e.id !== id);
+        setEntries(updated);
+        localStorage.setItem('detective_leaderboard', JSON.stringify(updated));
+      }
+    } catch {
+      const updated = entries.filter((e) => e.id !== id);
+      setEntries(updated);
+      localStorage.setItem('detective_leaderboard', JSON.stringify(updated));
     }
   };
 
@@ -85,12 +108,18 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
         </button>
 
         {/* Modal Title */}
-        <div className="flex items-center space-x-3 border-b border-white/10 pb-4 mb-6">
+        <div className="flex items-center space-x-3 border-b border-white/10 pb-4 mb-6 pr-8">
           <Trophy className="w-8 h-8 text-[#f59e0b] animate-bounce" />
           <div>
-            <h2 className="text-2xl font-black uppercase text-white tracking-widest flex items-center space-x-2">
+            <h2 className="text-2xl font-black uppercase text-white tracking-widest flex flex-wrap items-center gap-2">
               <span>HALL OF DETECTIVES</span>
               <span className="text-xs bg-[#f59e0b]/20 border border-[#f59e0b]/50 text-[#f59e0b] px-2 py-0.5 rounded font-mono">GLOBAL</span>
+              {canModerate && (
+                <span className="text-[10px] bg-rose-500/20 border border-rose-500/50 text-rose-400 px-2 py-0.5 rounded font-mono flex items-center space-x-1">
+                  <ShieldAlert className="w-3 h-3" />
+                  <span>MODERATION ACTIVE</span>
+                </span>
+              )}
             </h2>
             <p className="text-xs font-mono text-white/50">Top Ranking Frontend Detectives Worldwide</p>
           </div>
@@ -120,7 +149,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
 
           <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto">
             <span className="text-white/40 uppercase font-bold">Scope:</span>
-            {['All', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
+            {['All', 'Demo', 'Medium', 'Hard', 'Nightmare'].map((diff) => (
               <button
                 key={diff}
                 onClick={() => setFilterDiff(diff)}
@@ -173,6 +202,11 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
                             YOU
                           </span>
                         )}
+                        {entry.roomCode && (
+                          <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1.5 rounded">
+                            {entry.roomCode}
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px] text-white/40 flex items-center space-x-2">
                         <span>Level: {entry.difficulty}</span>
@@ -185,15 +219,27 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
                     </div>
                   </div>
 
-                  {/* XP & Score */}
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-[#f59e0b] flex items-center justify-end space-x-1">
-                      <Flame className="w-4 h-4 text-[#f59e0b]" />
-                      <span>{entry.xp} CR</span>
+                  {/* XP & Score + Admin Delete */}
+                  <div className="flex items-center space-x-3">
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-[#f59e0b] flex items-center justify-end space-x-1">
+                        <Flame className="w-4 h-4 text-[#f59e0b]" />
+                        <span>{entry.xp} CR</span>
+                      </div>
+                      <div className="text-[10px] text-white/30">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-white/30">
-                      {new Date(entry.date).toLocaleDateString()}
-                    </div>
+
+                    {canModerate && (
+                      <button
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg transition-colors"
+                        title="Purge Leaderboard Run (Admin/Architect)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

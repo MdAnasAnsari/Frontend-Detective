@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Frontend Detective — Full-Stack RBAC & UI Bug Hunting Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An interactive full-stack web engineering platform where players inspect live DOM layouts, identify CSS/UI anomalies, and resolve visual bugs across multiple difficulty tiers — powered by Role-Based Access Control (RBAC) and full CRUD management.
 
-Currently, two official plugins are available:
+## Key Full-Stack Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 1. Role-Based Access Control (RBAC)
+Three distinct roles with server-side middleware enforcement (`authenticate` & `authorizeRoles`):
+- **Detective (`detective`)**: Play official and community Cases, link to Live Event Rooms, inspect Post-Mortem technical explanations, and post/delete Field Notes.
+- **Case Architect (`architect`)**: Everything a Detective can do, plus access to the **Command Studio** to create, edit, and delete custom Cases & DOM anomalies, manage Live Event Rooms, launch the **Live Host Presenter View**, and moderate Leaderboard runs.
+- **Chief Inspector (`admin`)**: Full platform privileges, including the **User RBAC Console** to promote/demote user roles, assign custom badges, and delete user accounts.
 
-## React Compiler
+### 2. Full CRUD Modules
+- **Cases & Anomaly Builder CRUD (`/api/cases`)**: Create custom levels, choose layout templates (`SaaS`, `Ecommerce`, `Analytics`, `Settings`), configure time/integrity limits, and customize broken (`errorClass`) vs. fixed (`fixedClass`) Tailwind classes.
+- **User & Profile CRUD (`/api/auth`, `/api/users`)**: Register, Sign In, 1-Click RBAC Demo Role switching, in-place profile editing, and Admin User role/badge management.
+- **Leaderboard & Moderation CRUD (`/api/leaderboard`)**: Record verified mission runs and purge invalid entries (`admin` / `architect`).
+- **Live Hackathon / Classroom Rooms CRUD (`/api/rooms`)**: Create event rooms with join codes (`FD-2026`), toggle active status, filter leaderboards by room code, and display QR codes in Presenter Mode.
+- **Post-Mortem Field Notes CRUD (`/api/cases/:id/notes`)**: Inspect broken vs. fixed CSS classes after a mission and contribute debugging notes.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running Locally
 
-## Expanding the Oxlint configuration
+```bash
+# 1. Start the Express Full-Stack API Server (Port 5000)
+npm run server
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# 2. In a second terminal, start the Vite Frontend (Port 5173, proxies /api -> localhost:5000)
+npm run dev
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
