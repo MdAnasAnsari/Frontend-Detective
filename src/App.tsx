@@ -1050,13 +1050,15 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
   const [showPostMortem, setShowPostMortem] = useState(false);
   const [noteInput, setNoteInput] = useState('');
   const [notes, setNotes] = useState<CaseNote[]>(activeCase?.notes || []);
+  const scoreSubmittedRef = useRef(false);
 
   useEffect(() => {
     setNotes(activeCase?.notes || []);
   }, [activeCase]);
 
   useEffect(() => {
-    if (isVictory && user) {
+    if (isVictory && user && !scoreSubmittedRef.current) {
+      scoreSubmittedRef.current = true;
       fetch('/api/leaderboard', {
         method: 'POST',
         headers: {
@@ -1286,7 +1288,7 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
 }
 
 export default function App() {
-  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, triggerHint, hintTargetId, layoutType, user } = useGameStore();
+  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, triggerHint, hintTargetId, layoutType, user, validateAuth } = useGameStore();
   const [magnifier, setMagnifier] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseDefinition | null>(null);
@@ -1296,6 +1298,10 @@ export default function App() {
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isHostMode, setIsHostMode] = useState(false);
+
+  useEffect(() => {
+    validateAuth();
+  }, [validateAuth]);
 
   const handleStart = (chosenCase: CaseDefinition) => {
     if (!user) {
@@ -1343,7 +1349,11 @@ export default function App() {
       )}
     >
       {/* Global Modals */}
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onOpenStudio={() => setIsStudioOpen(true)}
+      />
       <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
       <AdminStudioModal
         isOpen={isStudioOpen}

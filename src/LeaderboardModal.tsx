@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Trophy, Medal, Search, Flame, Clock, RefreshCw, Trash2, ShieldAlert } from 'lucide-react';
 import { useGameStore } from './store';
@@ -29,7 +29,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
 
   const canModerate = user && (user.role === 'admin' || user.role === 'architect');
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/leaderboard');
@@ -56,7 +56,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleDeleteEntry = async (id: string) => {
     try {
@@ -82,7 +82,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
     if (isOpen) {
       fetchLeaderboard();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchLeaderboard]);
 
   if (!isOpen) return null;
 

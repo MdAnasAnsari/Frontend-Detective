@@ -76,6 +76,7 @@ interface GameState {
   setUser: (user: UserProfile | null) => void;
   setToken: (token: string | null) => void;
   logout: () => void;
+  validateAuth: () => Promise<void>;
   setActiveRoomCode: (code: string | null) => void;
 
   fetchCases: () => Promise<void>;
@@ -214,6 +215,26 @@ export const useGameStore = create<GameState>((set, get) => ({
     localStorage.removeItem('detective_token');
     localStorage.removeItem('detective_user');
     set({ user: null, token: null });
+  },
+
+  validateAuth: async () => {
+    const { token, logout, setUser } = get();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+        }
+      } else if (res.status === 401) {
+        logout();
+      }
+    } catch {
+      // Server offline; keep local fallback session
+    }
   },
 
   setActiveRoomCode: (code) => {

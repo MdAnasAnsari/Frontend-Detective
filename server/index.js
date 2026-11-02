@@ -115,9 +115,9 @@ function authorizeRoles(...allowedRoles) {
 
 app.post('/api/auth/register', (req, res) => {
   try {
-    const { name, uid, branch, email, contact, password, avatar, role } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
+    const { name, uid, branch, email, contact, password, avatar } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
     const users = readJsonFile('users.json', []);
@@ -128,13 +128,12 @@ app.post('/api/auth/register', (req, res) => {
     );
 
     if (existing) {
-      return res.json({
-        token: createToken(existing),
-        user: sanitizeUser(existing),
-      });
+      return res.status(409).json({ error: 'An agent with this email or UID already exists. Please sign in.' });
     }
 
-    const assignedRole = ['detective', 'architect', 'admin'].includes(role) ? role : 'detective';
+    // Role is strictly authentication-based. All new recruits start as detective.
+    // Privileges (architect, admin) can only be granted by an authenticated Admin in Admin Studio.
+    const assignedRole = 'detective';
     const badgeMap = {
       detective: 'Field Detective',
       architect: 'Case Architect',
@@ -149,7 +148,7 @@ app.post('/api/auth/register', (req, res) => {
       branch: branch || 'Frontend Engineering',
       email,
       contact: contact || 'N/A',
-      password: password || 'password123',
+      password: password,
       role: assignedRole,
       avatar: avatar || '🕵️‍♂️',
       badge: badgeMap[assignedRole],
@@ -174,8 +173,8 @@ app.post('/api/auth/register', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   try {
     const { identifier, password } = req.body;
-    if (!identifier) {
-      return res.status(400).json({ error: 'Email, username, or UID is required' });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
     const users = readJsonFile('users.json', []);
@@ -192,8 +191,8 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(404).json({ error: 'No agent found with that identifier' });
     }
 
-    if (password && user.password && user.password !== password) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user.password || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid credentials. Please verify your password.' });
     }
 
     return res.json({
