@@ -13,6 +13,9 @@ import {
   CheckCircle2,
   MonitorPlay,
   Sparkles,
+  BarChart2,
+  Clock,
+  Flame,
 } from 'lucide-react';
 import { useGameStore, type CaseDefinition, type Difficulty, type LayoutType, type UserProfile, type UserRole } from './store';
 
@@ -27,7 +30,7 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   const isAdmin = user?.role === 'admin';
   const isArchitectOrAdmin = user?.role === 'admin' || user?.role === 'architect';
 
-  const [activeTab, setActiveTab] = useState<'cases' | 'rooms' | 'users'>('cases');
+  const [activeTab, setActiveTab] = useState<'cases' | 'rooms' | 'users' | 'analytics'>('cases');
   const [statusBanner, setStatusBanner] = useState<string>('');
 
   // --- CASES CRUD STATE ---
@@ -44,14 +47,28 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [userSearch, setUserSearch] = useState('');
 
+  // --- MONITORING / LEADERBOARD STATE ---
+  const [scores, setScores] = useState<any[]>([]);
+
   useEffect(() => {
     if (!isOpen) return;
     fetchCases();
     fetchRooms();
+    fetchScores();
     if (isAdmin) {
       fetchUsers();
     }
   }, [isOpen, isAdmin]);
+
+  const fetchScores = async () => {
+    try {
+      const res = await fetch('/api/leaderboard');
+      if (res.ok) setScores(await res.json());
+    } catch {
+      const saved = localStorage.getItem('detective_leaderboard');
+      if (saved) setScores(JSON.parse(saved));
+    }
+  };
 
   useEffect(() => {
     const found = cases.find((c) => c.id === selectedCaseId) || cases[0];
@@ -430,6 +447,18 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
               <span>User RBAC Console (Admin Only)</span>
             </button>
           )}
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2.5 rounded-t-lg font-bold uppercase flex items-center space-x-2 border-b-2 transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-amber-600/20 text-amber-300 border-amber-400'
+                : 'text-slate-400 border-transparent hover:text-white'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4" />
+            <span>Level Monitoring & Telemetry</span>
+          </button>
         </div>
 
         {statusBanner && (
@@ -756,6 +785,103 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
             </div>
           )}
 
+          {/* TAB 4: LEVEL MONITORING & TELEMETRY */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              {/* Top Overview Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Levels / Cases</div>
+                  <div className="text-3xl font-black text-indigo-400">{cases.length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Active case assignments</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Submissions</div>
+                  <div className="text-3xl font-black text-emerald-400">{scores.length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Completed audit runs</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Active Agents</div>
+                  <div className="text-3xl font-black text-amber-400">{allUsers.length || 3}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Registered investigators</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Live Event Rooms</div>
+                  <div className="text-3xl font-black text-rose-400">{rooms.filter((r) => r.isActive).length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Active broadcast rooms</div>
+                </div>
+              </div>
+
+              {/* Per-Level Breakdown Table */}
+              <div className="space-y-3">
+                <div className="text-xs uppercase font-bold text-slate-400 flex items-center justify-between">
+                  <span>Level-by-Level Clear Rates & Performance</span>
+                  <span className="text-[10px] text-slate-500">Live Telemetry Metrics</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {cases.map((c) => {
+                    const levelScores = scores.filter(
+                      (s) => (s.caseId && s.caseId === c.id) || (s.difficulty && s.difficulty.toLowerCase() === c.difficulty.toLowerCase())
+                    );
+                    const avgXp = levelScores.length > 0 ? Math.round(levelScores.reduce((sum, s) => sum + (s.xp || 0), 0) / levelScores.length) : 0;
+                    const avgTimeLeft = levelScores.length > 0 ? Math.round(levelScores.reduce((sum, s) => sum + (s.timeLeft || 0), 0) / levelScores.length) : 0;
+
+                    return (
+                      <div key={c.id} className="p-4 bg-black/40 border border-white/10 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-bold text-white">{c.title}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-indigo-300 uppercase font-mono">
+                              {c.difficulty}
+                            </span>
+                            {c.isOfficial ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                OFFICIAL
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                CUSTOM
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>Layout: {c.layoutType}</span>
+                            <span>Anomalies: {c.errors.length}</span>
+                            <span>Time Limit: {c.timeLimit}s</span>
+                            <span>Author: {c.author}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-6 text-xs font-mono">
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase">Audit Runs</div>
+                            <div className="text-base font-bold text-white">{levelScores.length}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase flex items-center justify-end space-x-1">
+                              <Flame className="w-3 h-3 text-amber-400" />
+                              <span>Avg Bounty</span>
+                            </div>
+                            <div className="text-base font-bold text-amber-400">{avgXp} CR</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase flex items-center justify-end space-x-1">
+                              <Clock className="w-3 h-3 text-emerald-400" />
+                              <span>Avg Pace</span>
+                            </div>
+                            <div className="text-base font-bold text-emerald-400">{avgTimeLeft}s left</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
           {/* TAB 3: USER RBAC MANAGEMENT (ADMIN ONLY) */}
           {activeTab === 'users' && isAdmin && (
             <div className="space-y-4">
@@ -834,6 +960,103 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
               </div>
             </div>
           )}
+
+          {/* TAB 4: LEVEL MONITORING & TELEMETRY */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              {/* Top Overview Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Levels / Cases</div>
+                  <div className="text-3xl font-black text-indigo-400">{cases.length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Active case assignments</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Submissions</div>
+                  <div className="text-3xl font-black text-emerald-400">{scores.length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Completed audit runs</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Active Agents</div>
+                  <div className="text-3xl font-black text-amber-400">{allUsers.length || 3}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Registered investigators</div>
+                </div>
+                <div className="bg-black/50 border border-white/10 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Live Event Rooms</div>
+                  <div className="text-3xl font-black text-rose-400">{rooms.filter((r) => r.isActive).length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Active broadcast rooms</div>
+                </div>
+              </div>
+
+              {/* Per-Level Breakdown Table */}
+              <div className="space-y-3">
+                <div className="text-xs uppercase font-bold text-slate-400 flex items-center justify-between">
+                  <span>Level-by-Level Clear Rates & Performance</span>
+                  <span className="text-[10px] text-slate-500">Live Telemetry Metrics</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {cases.map((c) => {
+                    const levelScores = scores.filter(
+                      (s) => (s.caseId && s.caseId === c.id) || (s.difficulty && s.difficulty.toLowerCase() === c.difficulty.toLowerCase())
+                    );
+                    const avgXp = levelScores.length > 0 ? Math.round(levelScores.reduce((sum, s) => sum + (s.xp || 0), 0) / levelScores.length) : 0;
+                    const avgTimeLeft = levelScores.length > 0 ? Math.round(levelScores.reduce((sum, s) => sum + (s.timeLeft || 0), 0) / levelScores.length) : 0;
+
+                    return (
+                      <div key={c.id} className="p-4 bg-black/40 border border-white/10 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-bold text-white">{c.title}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-indigo-300 uppercase font-mono">
+                              {c.difficulty}
+                            </span>
+                            {c.isOfficial ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                OFFICIAL
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                CUSTOM
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>Layout: {c.layoutType}</span>
+                            <span>Anomalies: {c.errors.length}</span>
+                            <span>Time Limit: {c.timeLimit}s</span>
+                            <span>Author: {c.author}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-6 text-xs font-mono">
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase">Audit Runs</div>
+                            <div className="text-base font-bold text-white">{levelScores.length}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase flex items-center justify-end space-x-1">
+                              <Flame className="w-3 h-3 text-amber-400" />
+                              <span>Avg Bounty</span>
+                            </div>
+                            <div className="text-base font-bold text-amber-400">{avgXp} CR</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-slate-400 text-[10px] uppercase flex items-center justify-end space-x-1">
+                              <Clock className="w-3 h-3 text-emerald-400" />
+                              <span>Avg Pace</span>
+                            </div>
+                            <div className="text-base font-bold text-emerald-400">{avgTimeLeft}s left</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         </div>
       </motion.div>
     </div>
