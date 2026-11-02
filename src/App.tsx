@@ -629,7 +629,7 @@ function StartScreen({
 
   useEffect(() => {
     fetchCases();
-  }, []);
+  }, [fetchCases]);
 
   useGSAP(
     () => {
@@ -1286,7 +1286,7 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
 }
 
 export default function App() {
-  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, useHint, hintTargetId, layoutType, user } = useGameStore();
+  const { startGame, isPlaying, isGameOver, isVictory, tick, hintsLeft, triggerHint, hintTargetId, layoutType, user } = useGameStore();
   const [magnifier, setMagnifier] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseDefinition | null>(null);
@@ -1371,7 +1371,7 @@ export default function App() {
             <div className="fixed bottom-16 right-6 z-50 flex space-x-3">
               <button
                 onClick={() => {
-                  if (hintsLeft > 0) useHint();
+                  if (hintsLeft > 0) triggerHint();
                 }}
                 disabled={hintsLeft <= 0}
                 className={cn(

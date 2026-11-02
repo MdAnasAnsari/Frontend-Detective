@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -50,17 +50,7 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   // --- MONITORING / LEADERBOARD STATE ---
   const [scores, setScores] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    fetchCases();
-    fetchRooms();
-    fetchScores();
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [isOpen, isAdmin]);
-
-  const fetchScores = async () => {
+  const fetchScores = useCallback(async () => {
     try {
       const res = await fetch('/api/leaderboard');
       if (res.ok) setScores(await res.json());
@@ -68,22 +58,9 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
       const saved = localStorage.getItem('detective_leaderboard');
       if (saved) setScores(JSON.parse(saved));
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    const found = cases.find((c) => c.id === selectedCaseId) || cases[0];
-    if (found && !isCreatingNewCase) {
-      setEditingCase(JSON.parse(JSON.stringify(found)));
-    }
-  }, [selectedCaseId, cases, isCreatingNewCase]);
-
-  const notify = (msg: string) => {
-    setStatusBanner(msg);
-    setTimeout(() => setStatusBanner(''), 3500);
-  };
-
-  // --- ROOMS API ---
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     try {
       const res = await fetch('/api/rooms');
       if (res.ok) {
@@ -106,7 +83,83 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
         ]);
       }
     }
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setAllUsers(await res.json());
+        return;
+      }
+      throw new Error('Fallback');
+    } catch {
+      setAllUsers([
+        {
+          id: 'usr-1',
+          username: 'GarvitBhutani',
+          email: 'garvit@frontenddetective.dev',
+          branch: 'CSE',
+          role: 'admin',
+          avatar: '🕵️‍♂️',
+          badge: 'Chief Inspector',
+          totalXp: 4800,
+          gamesPlayed: 12,
+          victories: 11,
+        },
+        {
+          id: 'usr-2',
+          username: 'CaseArchitect',
+          email: 'architect@frontenddetective.dev',
+          branch: 'AI & DS',
+          role: 'architect',
+          avatar: '⚡',
+          badge: 'Lead Case Architect',
+          totalXp: 3650,
+          gamesPlayed: 10,
+          victories: 8,
+        },
+        {
+          id: 'usr-3',
+          username: 'CodeSherlock',
+          email: 'sherlock@frontenddetective.dev',
+          branch: 'IT',
+          role: 'detective',
+          avatar: '🔎',
+          badge: 'Senior Field Detective',
+          totalXp: 2900,
+          gamesPlayed: 7,
+          victories: 6,
+        },
+      ]);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchCases();
+    fetchRooms();
+    fetchScores();
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isOpen, isAdmin, fetchCases, fetchRooms, fetchScores, fetchUsers]);
+
+  useEffect(() => {
+    const found = cases.find((c) => c.id === selectedCaseId) || cases[0];
+    if (found && !isCreatingNewCase) {
+      setEditingCase(JSON.parse(JSON.stringify(found)));
+    }
+  }, [selectedCaseId, cases, isCreatingNewCase]);
+
+  const notify = (msg: string) => {
+    setStatusBanner(msg);
+    setTimeout(() => setStatusBanner(''), 3500);
   };
+
+  // --- ROOMS API ---
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,57 +240,6 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   };
 
   // --- USERS RBAC API ---
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setAllUsers(await res.json());
-        return;
-      }
-      throw new Error('Fallback');
-    } catch {
-      setAllUsers([
-        {
-          id: 'usr-1',
-          username: 'GarvitBhutani',
-          email: 'garvit@frontenddetective.dev',
-          branch: 'CSE',
-          role: 'admin',
-          avatar: '🕵️‍♂️',
-          badge: 'Chief Inspector',
-          totalXp: 4800,
-          gamesPlayed: 12,
-          victories: 11,
-        },
-        {
-          id: 'usr-2',
-          username: 'CaseArchitect',
-          email: 'architect@frontenddetective.dev',
-          branch: 'AI & DS',
-          role: 'architect',
-          avatar: '⚡',
-          badge: 'Lead Case Architect',
-          totalXp: 3650,
-          gamesPlayed: 10,
-          victories: 8,
-        },
-        {
-          id: 'usr-3',
-          username: 'CodeSherlock',
-          email: 'sherlock@frontenddetective.dev',
-          branch: 'IT',
-          role: 'detective',
-          avatar: '🔎',
-          badge: 'Senior Field Detective',
-          totalXp: 2900,
-          gamesPlayed: 7,
-          victories: 6,
-        },
-      ]);
-    }
-  };
 
   const handleUpdateUserRole = async (targetUser: UserProfile, newRole: UserRole, newBadge: string) => {
     try {

@@ -60,7 +60,7 @@ function createToken(user) {
 
 function sanitizeUser(user) {
   if (!user) return null;
-  const { password, ...rest } = user;
+  const { password: _password, ...rest } = user;
   return {
     ...rest,
     username: rest.username || rest.name,
@@ -608,7 +608,7 @@ app.delete('/api/rooms/:id', authenticate, authorizeRoles('architect', 'admin'),
   }
 });
 
-if (process.env.NODE_ENV !== 'production') {
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🕵️‍♂️ Frontend Detective Full-Stack Server running on http://localhost:${PORT}`);
   });

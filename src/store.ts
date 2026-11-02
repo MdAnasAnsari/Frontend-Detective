@@ -85,7 +85,7 @@ interface GameState {
   missClick: () => void;
   tick: () => void;
   resetGame: () => void;
-  useHint: () => void;
+  triggerHint: () => void;
 }
 
 export const DEFAULT_CASES: CaseDefinition[] = [
@@ -327,7 +327,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  useHint: () => {
+  triggerHint: () => {
     set((state) => {
       if (state.hintsLeft > 0) {
         const unfixed = state.errors.filter((e) => !e.fixed);

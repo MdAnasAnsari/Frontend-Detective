@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, Flame, Users, QrCode, MonitorPlay, ChevronLeft, Radio } from 'lucide-react';
 import { useGameStore } from './store';
@@ -8,7 +8,7 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const query = activeRoomCode ? `?roomCode=${encodeURIComponent(activeRoomCode)}` : '';
       const res = await fetch(`/api/leaderboard${query}`);
@@ -25,13 +25,13 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeRoomCode]);
 
   useEffect(() => {
     fetchLeaderboard();
     const interval = setInterval(fetchLeaderboard, 3000);
     return () => clearInterval(interval);
-  }, [activeRoomCode]);
+  }, [fetchLeaderboard]);
 
   const topEntries = entries.slice(0, 10);
 
