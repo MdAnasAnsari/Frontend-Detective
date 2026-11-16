@@ -7,21 +7,19 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
   const { activeRoomCode } = useGameStore();
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
       const query = activeRoomCode ? `?roomCode=${encodeURIComponent(activeRoomCode)}` : '';
       const res = await fetch(`/api/leaderboard${query}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEntries(data);
-      } else {
-        const local = localStorage.getItem('detective_leaderboard');
-        if (local) setEntries(JSON.parse(local));
-      }
-    } catch {
-      const local = localStorage.getItem('detective_leaderboard');
-      if (local) setEntries(JSON.parse(local));
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setEntries(await res.json());
+      setError(null);
+    } catch (err) {
+      // Presenter view polls every 3s; a transient failure is surfaced
+      // instead of falling back to a stale localStorage snapshot.
+      setError(err instanceof Error ? err.message : 'Live feed unavailable');
     } finally {
       setLoading(false);
     }
@@ -116,6 +114,11 @@ export default function HostScreen({ onExit }: { onExit: () => void }) {
               <span>{activeRoomCode ? `Room ${activeRoomCode} Rankings` : 'Live Global Rankings'}</span>
             </h2>
             {loading && <div className="text-sm font-mono text-white/50 animate-pulse">Syncing...</div>}
+            {error && (
+              <div className="text-sm font-mono text-red-400">
+                Live feed offline — {error}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-4 custom-scrollbar">

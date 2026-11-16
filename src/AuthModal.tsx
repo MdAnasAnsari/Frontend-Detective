@@ -19,7 +19,7 @@ import {
   ArrowRight,
   Sliders,
 } from 'lucide-react';
-import { useGameStore, type UserRole, type UserProfile } from './store';
+import { useGameStore, type UserRole } from './store';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -133,36 +133,10 @@ export default function AuthModal({ isOpen, onClose, onOpenStudio }: AuthModalPr
       setMode('profile');
       onClose();
     } catch (err: any) {
-      // Local fallback verification only if password matches demo account
-      const demoMatch = DEMO_CREDENTIALS.find(
-        (d) =>
-          d.email.toLowerCase() === identifier.trim().toLowerCase() ||
-          d.title.toLowerCase().includes(identifier.trim().toLowerCase())
-      );
-
-      if (demoMatch && password === demoMatch.pass) {
-        const fallbackUser: UserProfile = {
-          id: demoMatch.role === 'admin' ? 'usr-1' : demoMatch.role === 'architect' ? 'usr-2' : 'usr-3',
-          username: demoMatch.role === 'admin' ? 'GarvitBhutani' : demoMatch.role === 'architect' ? 'CaseArchitect' : 'CodeSherlock',
-          name: demoMatch.role === 'admin' ? 'Garvit Amit Bhutani' : demoMatch.role === 'architect' ? 'Aria Vance' : 'Sherlock Dev',
-          uid: demoMatch.role === 'admin' ? 'ADMIN-001' : demoMatch.role === 'architect' ? 'ARCH-102' : 'DET-204',
-          branch: demoMatch.role === 'admin' ? 'CSE' : demoMatch.role === 'architect' ? 'AI & DS' : 'IT',
-          email: demoMatch.email,
-          contact: '9999999999',
-          role: demoMatch.role,
-          avatar: demoMatch.avatar,
-          badge: demoMatch.role === 'admin' ? 'Chief Inspector' : demoMatch.role === 'architect' ? 'Lead Case Architect' : 'Senior Field Detective',
-          totalXp: demoMatch.role === 'admin' ? 4800 : demoMatch.role === 'architect' ? 3650 : 2900,
-          gamesPlayed: demoMatch.role === 'admin' ? 12 : demoMatch.role === 'architect' ? 10 : 7,
-          victories: demoMatch.role === 'admin' ? 11 : demoMatch.role === 'architect' ? 8 : 6,
-        };
-        setUser(fallbackUser);
-        setToken(`fd-token::${fallbackUser.id}::${fallbackUser.role}`);
-        setMode('profile');
-        onClose();
-      } else {
-        setError(err.message || 'Invalid credentials. Please verify your passcode.');
-      }
+      // No offline fallback. Previously a matching demo password minted a
+      // client-side token -- including an admin one -- so the app could be
+      // "logged into" with no server and no database at all.
+      setError(err?.message || 'Could not reach the server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -174,8 +148,8 @@ export default function AuthModal({ isOpen, onClose, onOpenStudio }: AuthModalPr
     setSuccessMsg('');
     setLoading(true);
 
-    if (!registerPassword || registerPassword.length < 6) {
-      setError('Access passcode must be at least 6 characters.');
+    if (!registerPassword || registerPassword.length < 8) {
+      setError('Access passcode must be at least 8 characters.');
       setLoading(false);
       return;
     }
@@ -205,30 +179,9 @@ export default function AuthModal({ isOpen, onClose, onOpenStudio }: AuthModalPr
       setMode('profile');
       onClose();
     } catch (err: any) {
-      if (err.message && err.message.includes('already exists')) {
-        setError(err.message);
-      } else {
-        // Offline fallback registration strictly as 'detective'
-        const localUser: UserProfile = {
-          id: `usr-${Date.now()}`,
-          username: name,
-          name,
-          uid: uid || `FD-${Math.floor(1000 + Math.random() * 9000)}`,
-          branch: branch || 'Frontend Engineering',
-          email,
-          contact: contact || 'N/A',
-          role: 'detective',
-          avatar,
-          badge: 'Field Detective',
-          totalXp: 0,
-          gamesPlayed: 0,
-          victories: 0,
-        };
-        setUser(localUser);
-        setToken(`fd-token::${localUser.id}::detective`);
-        setMode('profile');
-        onClose();
-      }
+      // An account that was never written to the database must not appear
+      // to exist, so there is no local registration fallback.
+      setError(err?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -249,18 +202,16 @@ export default function AuthModal({ isOpen, onClose, onOpenStudio }: AuthModalPr
         },
         body: JSON.stringify({ name, avatar, branch, contact }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      } else {
-        setUser({ ...user, username: name, name, avatar, branch, contact });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Update failed (${res.status})`);
       }
+      const data = await res.json();
+      setUser(data.user);
       setIsEditingProfile(false);
       setSuccessMsg('Agent profile updated!');
-    } catch {
-      setUser({ ...user, username: name, name, avatar, branch, contact });
-      setIsEditingProfile(false);
-      setSuccessMsg('Agent profile updated locally!');
+    } catch (err: any) {
+      setError(err?.message || 'Could not save your profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -704,7 +655,7 @@ export default function AuthModal({ isOpen, onClose, onOpenStudio }: AuthModalPr
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     className="block w-full pl-9 bg-black/60 border border-white/20 rounded-lg py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs"
-                    placeholder="Min 6 characters"
+                    placeholder="Min 8 characters"
                     required
                   />
                 </div>

@@ -1,318 +1,289 @@
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
+
+import { connectDB, requireDB, isDbConfigured } from './db.js';
+import { authenticate, authorizeRoles, createToken } from './auth.js';
+import User, { USER_ROLES } from './models/User.js';
+import Case from './models/Case.js';
+import Score from './models/Score.js';
+import Room from './models/Room.js';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, 'data');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+app.set('trust proxy', 1);
+app.use(helmet());
 
-// Optional MongoDB connection (only if MONGO_URI is explicitly provided in environment)
-const MONGO_URI = process.env.MONGO_URI || '';
-if (MONGO_URI) {
-  mongoose
-    .connect(MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB successfully!'))
-    .catch((err) => console.warn('⚠️ MongoDB connection failed, using local JSON store fallback:', err.message));
-}
+// CORS: locked to the configured origins. The Vite dev server is proxied, so
+// same-origin in development; CORS_ORIGINS matters for a split deployment.
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-// Helper functions for JSON persistence
-function readJsonFile(filename, defaultData = []) {
-  try {
-    const filePath = path.join(DATA_DIR, filename);
-    if (!fs.existsSync(filePath)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-      fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2), 'utf-8');
-      return defaultData;
-    }
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error(`Error reading ${filename}:`, err);
-    return defaultData;
-  }
-}
+app.use(
+  cors({
+    origin(origin, callback) {
+      // No Origin header = same-origin, curl, or a server-to-server call.
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origin ${origin} is not allowed by CORS policy`));
+    },
+    credentials: true,
+  })
+);
 
-function writeJsonFile(filename, data) {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const filePath = path.join(DATA_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error(`Error writing ${filename}:`, err);
-  }
-}
+app.use(express.json({ limit: '200kb' }));
 
-function createToken(user) {
-  return `fd-token::${user.id}::${user.role || 'detective'}`;
-}
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts. Please try again later.' },
+});
 
-function sanitizeUser(user) {
-  if (!user) return null;
-  const { password: _password, ...rest } = user;
-  return {
-    ...rest,
-    username: rest.username || rest.name,
-    role: rest.role || 'detective',
-  };
-}
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+});
 
-// RBAC Authentication Middleware
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
+// Health check is registered BEFORE the DB guard so it still answers when
+// Mongo is unreachable -- that is exactly when you need to query it.
+app.get('/api/health', (req, res) => {
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const state = states[mongoose.connection.readyState] || 'unknown';
+  res.json({
+    status: state === 'connected' ? 'ok' : 'degraded',
+    database: { configured: isDbConfigured(), state },
+  });
+});
 
-  const token = authHeader.replace('Bearer ', '').trim();
-  const users = readJsonFile('users.json', []);
+// Every data route goes through requireDB, which returns 503 if Mongo is
+// unreachable rather than pretending a write succeeded.
+app.use('/api', requireDB);
 
-  let userId = null;
-  if (token.startsWith('fd-token::')) {
-    const parts = token.split('::');
-    userId = parts[1];
-  } else if (token.startsWith('jwt-token-')) {
-    userId = token.replace('jwt-token-', '');
-  }
+const BADGE_BY_ROLE = {
+  detective: 'Field Detective',
+  architect: 'Case Architect',
+  admin: 'Chief Inspector',
+};
 
-  const user = users.find((u) => u.id === userId);
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid or expired session token' });
-  }
-
-  req.user = sanitizeUser(user);
-  next();
-}
-
-function authorizeRoles(...allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        error: `Access denied. Required role: ${allowedRoles.join(' or ')} (your role: ${req.user.role})`,
-      });
-    }
-    next();
-  };
-}
+// Wraps an async handler so a rejected promise reaches the error middleware
+// instead of hanging the request.
+const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // ==========================================
-// 1. AUTHENTICATION & PROFILE ROUTES
+// 1. AUTHENTICATION & PROFILE
 // ==========================================
 
-app.post('/api/auth/register', (req, res) => {
-  try {
+app.post(
+  '/api/auth/register',
+  authLimiter,
+  ah(async (req, res) => {
     const { name, uid, branch, email, contact, password, avatar } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
-
-    const users = readJsonFile('users.json', []);
-    const existing = users.find(
-      (u) =>
-        (uid && u.uid && u.uid.toLowerCase() === uid.toLowerCase()) ||
-        (u.email && u.email.toLowerCase() === email.toLowerCase())
-    );
-
-    if (existing) {
-      return res.status(409).json({ error: 'An agent with this email or UID already exists. Please sign in.' });
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    // Role is strictly authentication-based. All new recruits start as detective.
-    // Privileges (architect, admin) can only be granted by an authenticated Admin in Admin Studio.
-    const assignedRole = 'detective';
-    const badgeMap = {
-      detective: 'Field Detective',
-      architect: 'Case Architect',
-      admin: 'Chief Inspector',
-    };
+    const resolvedUid = uid || `FD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const clash = await User.findOne({
+      $or: [{ email: String(email).toLowerCase() }, { uid: resolvedUid }],
+    });
+    if (clash) {
+      return res
+        .status(409)
+        .json({ error: 'An agent with this email or UID already exists. Please sign in.' });
+    }
 
-    const newUser = {
-      id: `usr-${Date.now()}`,
+    // Role is never taken from the request body. Every recruit starts as a
+    // detective; only an authenticated admin can promote via /api/users/:id.
+    const user = new User({
       name,
       username: name,
-      uid: uid || `FD-${Math.floor(1000 + Math.random() * 9000)}`,
+      uid: resolvedUid,
       branch: branch || 'Frontend Engineering',
       email,
       contact: contact || 'N/A',
-      password: password,
-      role: assignedRole,
+      password,
+      role: 'detective',
       avatar: avatar || '🕵️‍♂️',
-      badge: badgeMap[assignedRole],
-      totalXp: 0,
-      gamesPlayed: 0,
-      victories: 0,
-    };
-
-    users.push(newUser);
-    writeJsonFile('users.json', users);
-
-    return res.status(201).json({
-      token: createToken(newUser),
-      user: sanitizeUser(newUser),
+      badge: BADGE_BY_ROLE.detective,
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error during registration' });
-  }
-});
+    await user.save();
 
-app.post('/api/auth/login', (req, res) => {
-  try {
+    res.status(201).json({ token: createToken(user), user: user.toJSON() });
+  })
+);
+
+app.post(
+  '/api/auth/login',
+  authLimiter,
+  ah(async (req, res) => {
     const { identifier, password } = req.body;
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
-    const users = readJsonFile('users.json', []);
-    const norm = identifier.trim().toLowerCase();
-    const user = users.find(
-      (u) =>
-        (u.email && u.email.toLowerCase() === norm) ||
-        (u.username && u.username.toLowerCase() === norm) ||
-        (u.name && u.name.toLowerCase() === norm) ||
-        (u.uid && u.uid.toLowerCase() === norm)
-    );
+    const norm = String(identifier).trim();
+    const user = await User.findOne({
+      $or: [
+        { email: norm.toLowerCase() },
+        { username: new RegExp(`^${escapeRegex(norm)}$`, 'i') },
+        { name: new RegExp(`^${escapeRegex(norm)}$`, 'i') },
+        { uid: new RegExp(`^${escapeRegex(norm)}$`, 'i') },
+      ],
+    }).select('+password');
 
-    if (!user) {
-      return res.status(404).json({ error: 'No agent found with that identifier' });
-    }
+    // One generic message for both "no such user" and "wrong password" so the
+    // endpoint cannot be used to enumerate which accounts exist.
+    const invalid = { error: 'Invalid credentials. Please check your details and try again.' };
+    if (!user) return res.status(401).json(invalid);
 
-    if (!user.password || user.password !== password) {
-      return res.status(401).json({ error: 'Invalid credentials. Please verify your password.' });
-    }
+    const ok = await user.comparePassword(password);
+    if (!ok) return res.status(401).json(invalid);
 
-    return res.json({
-      token: createToken(user),
-      user: sanitizeUser(user),
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error during login' });
-  }
-});
+    res.json({ token: createToken(user), user: user.toJSON() });
+  })
+);
 
 app.get('/api/auth/me', authenticate, (req, res) => {
-  return res.json({ user: req.user });
+  res.json({ user: req.user.toJSON() });
 });
 
-app.patch('/api/auth/profile', authenticate, (req, res) => {
-  try {
+app.patch(
+  '/api/auth/profile',
+  authenticate,
+  writeLimiter,
+  ah(async (req, res) => {
     const { name, avatar, branch, contact } = req.body;
-    const users = readJsonFile('users.json', []);
-    const idx = users.findIndex((u) => u.id === req.user.id);
-    if (idx === -1) return res.status(404).json({ error: 'User not found' });
+    const user = req.user;
 
     if (name) {
-      users[idx].name = name;
-      users[idx].username = name;
+      user.name = name;
+      user.username = name;
     }
-    if (avatar) users[idx].avatar = avatar;
-    if (branch) users[idx].branch = branch;
-    if (contact) users[idx].contact = contact;
+    if (avatar) user.avatar = avatar;
+    if (branch) user.branch = branch;
+    if (contact) user.contact = contact;
 
-    writeJsonFile('users.json', users);
-    return res.json({ user: sanitizeUser(users[idx]) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
+    await user.save();
+    res.json({ user: user.toJSON() });
+  })
+);
 
 // ==========================================
-// 2. RBAC USER MANAGEMENT CRUD (ADMIN ONLY)
+// 2. RBAC USER MANAGEMENT (ADMIN ONLY)
 // ==========================================
 
-app.get('/api/users', authenticate, authorizeRoles('admin'), (req, res) => {
-  const users = readJsonFile('users.json', []);
-  res.json(users.map(sanitizeUser));
-});
+app.get(
+  '/api/users',
+  authenticate,
+  authorizeRoles('admin'),
+  ah(async (req, res) => {
+    const users = await User.find().sort({ totalXp: -1 });
+    res.json(users.map((u) => u.toJSON()));
+  })
+);
 
-app.patch('/api/users/:id', authenticate, authorizeRoles('admin'), (req, res) => {
-  try {
-    const { id } = req.params;
+app.patch(
+  '/api/users/:id',
+  authenticate,
+  authorizeRoles('admin'),
+  writeLimiter,
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+
     const { role, badge, totalXp } = req.body;
-    const users = readJsonFile('users.json', []);
-    const idx = users.findIndex((u) => u.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'User not found' });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (role && ['detective', 'architect', 'admin'].includes(role)) {
-      users[idx].role = role;
+    // An admin must not strip their own admin role and lock everyone out.
+    if (role && role !== user.role && String(user._id) === String(req.user._id)) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
     }
-    if (badge !== undefined) {
-      users[idx].badge = badge;
+    if (role) {
+      if (!USER_ROLES.includes(role)) {
+        return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
+      }
+      user.role = role;
+      if (badge === undefined) user.badge = BADGE_BY_ROLE[role];
     }
+    if (badge !== undefined) user.badge = badge;
     if (totalXp !== undefined) {
-      users[idx].totalXp = Number(totalXp);
+      const xp = Number(totalXp);
+      if (!Number.isFinite(xp) || xp < 0) {
+        return res.status(400).json({ error: 'totalXp must be a non-negative number' });
+      }
+      user.totalXp = xp;
     }
 
-    writeJsonFile('users.json', users);
-    res.json({ user: sanitizeUser(users[idx]) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
+    await user.save();
+    res.json({ user: user.toJSON() });
+  })
+);
 
-app.delete('/api/users/:id', authenticate, authorizeRoles('admin'), (req, res) => {
-  try {
-    const { id } = req.params;
-    if (id === req.user.id) {
+app.delete(
+  '/api/users/:id',
+  authenticate,
+  authorizeRoles('admin'),
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+    if (String(req.params.id) === String(req.user._id)) {
       return res.status(400).json({ error: 'Cannot delete your own active admin account' });
     }
-    const users = readJsonFile('users.json', []);
-    const target = users.find((u) => u.id === id);
-    if (!target) return res.status(404).json({ error: 'User not found' });
 
-    const updatedUsers = users.filter((u) => u.id !== id);
-    writeJsonFile('users.json', updatedUsers);
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Cascade delete user scores
-    const scores = readJsonFile('leaderboard.json', []);
-    const updatedScores = scores.filter(
-      (s) => s.userId !== id && s.username.toLowerCase() !== (target.username || target.name).toLowerCase()
-    );
-    writeJsonFile('leaderboard.json', updatedScores);
+    await Score.deleteMany({ userId: user._id });
+    await user.deleteOne();
 
     res.json({ message: 'User and associated scores deleted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
+  })
+);
 
 // ==========================================
-// 3. CASES & ANOMALIES CRUD (ARCHITECT / ADMIN)
+// 3. CASES & ANOMALIES CRUD
 // ==========================================
 
-app.get('/api/cases', (req, res) => {
-  const cases = readJsonFile('cases.json', []);
-  res.json(cases);
-});
+app.get(
+  '/api/cases',
+  ah(async (req, res) => {
+    const cases = await Case.find().sort({ createdAt: 1 });
+    res.json(cases.map((c) => c.toJSON()));
+  })
+);
 
-app.post('/api/cases', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
+app.post(
+  '/api/cases',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  writeLimiter,
+  ah(async (req, res) => {
     const { title, difficulty, layoutType, roleTitle, timeLimit, attemptsLimit, errors } = req.body;
     if (!title || !difficulty) {
       return res.status(400).json({ error: 'Title and difficulty are required' });
     }
 
-    const cases = readJsonFile('cases.json', []);
-    const newCase = {
-      id: `case-${Date.now()}`,
+    const stamp = Date.now();
+    const created = await Case.create({
       title,
       difficulty,
       layoutType: layoutType || 'SaaS',
@@ -321,296 +292,376 @@ app.post('/api/cases', authenticate, authorizeRoles('architect', 'admin'), (req,
       attemptsLimit: Number(attemptsLimit) || 10,
       author: req.user.username,
       isOfficial: req.user.role === 'admin',
-      errors: Array.isArray(errors) && errors.length > 0 ? errors : [
-        {
-          id: `err-${Date.now()}-1`,
-          description: 'Uneven button padding',
-          category: 'Spacing',
-          points: 150,
-          errorClass: 'px-2 py-4',
-          fixedClass: 'px-6 py-3',
-          explanation: 'Horizontal padding was smaller than vertical padding.'
-        }
-      ],
+      errors:
+        Array.isArray(errors) && errors.length > 0
+          ? errors.map((e, i) => ({ ...e, id: e.id || `err-${stamp}-${i + 1}` }))
+          : [
+              {
+                id: `err-${stamp}-1`,
+                description: 'Uneven button padding',
+                category: 'Spacing',
+                points: 150,
+                errorClass: 'px-2 py-4',
+                fixedClass: 'px-6 py-3',
+                explanation: 'Horizontal padding was smaller than vertical padding.',
+              },
+            ],
       notes: [],
-    };
+    });
 
-    cases.push(newCase);
-    writeJsonFile('cases.json', cases);
-    res.status(201).json(newCase);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create case' });
-  }
-});
+    res.status(201).json(created.toJSON());
+  })
+);
 
-app.put('/api/cases/:id', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, difficulty, layoutType, roleTitle, timeLimit, attemptsLimit, errors, isOfficial } = req.body;
-    const cases = readJsonFile('cases.json', []);
-    const idx = cases.findIndex((c) => c.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Case not found' });
-
-    if (title !== undefined) cases[idx].title = title;
-    if (difficulty !== undefined) cases[idx].difficulty = difficulty;
-    if (layoutType !== undefined) cases[idx].layoutType = layoutType;
-    if (roleTitle !== undefined) cases[idx].roleTitle = roleTitle;
-    if (timeLimit !== undefined) cases[idx].timeLimit = Number(timeLimit);
-    if (attemptsLimit !== undefined) cases[idx].attemptsLimit = Number(attemptsLimit);
-    if (Array.isArray(errors)) cases[idx].errors = errors;
-    if (isOfficial !== undefined && req.user.role === 'admin') {
-      cases[idx].isOfficial = Boolean(isOfficial);
+app.put(
+  '/api/cases/:id',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  writeLimiter,
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid case id' });
     }
 
-    writeJsonFile('cases.json', cases);
-    res.json(cases[idx]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update case' });
-  }
-});
+    const found = await Case.findById(req.params.id);
+    if (!found) return res.status(404).json({ error: 'Case not found' });
 
-app.delete('/api/cases/:id', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
-    const { id } = req.params;
-    const cases = readJsonFile('cases.json', []);
-    const target = cases.find((c) => c.id === id);
-    if (!target) return res.status(404).json({ error: 'Case not found' });
+    const { title, difficulty, layoutType, roleTitle, timeLimit, attemptsLimit, errors, isOfficial } =
+      req.body;
 
-    if (target.isOfficial && req.user.role !== 'admin') {
+    if (title !== undefined) found.title = title;
+    if (difficulty !== undefined) found.difficulty = difficulty;
+    if (layoutType !== undefined) found.layoutType = layoutType;
+    if (roleTitle !== undefined) found.roleTitle = roleTitle;
+    if (timeLimit !== undefined) found.timeLimit = Number(timeLimit);
+    if (attemptsLimit !== undefined) found.attemptsLimit = Number(attemptsLimit);
+    if (Array.isArray(errors)) {
+      const stamp = Date.now();
+      found.errors = errors.map((e, i) => ({ ...e, id: e.id || `err-${stamp}-${i + 1}` }));
+    }
+    if (isOfficial !== undefined && req.user.role === 'admin') {
+      found.isOfficial = Boolean(isOfficial);
+    }
+
+    await found.save();
+    res.json(found.toJSON());
+  })
+);
+
+app.delete(
+  '/api/cases/:id',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid case id' });
+    }
+
+    const found = await Case.findById(req.params.id);
+    if (!found) return res.status(404).json({ error: 'Case not found' });
+
+    if (found.isOfficial && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Only Chief Inspectors (Admins) can delete official cases' });
     }
 
-    const updated = cases.filter((c) => c.id !== id);
-    writeJsonFile('cases.json', updated);
+    await found.deleteOne();
     res.json({ message: 'Case deleted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete case' });
-  }
-});
+  })
+);
 
-// Post-Mortem Notes CRUD on a Case
-app.post('/api/cases/:id/notes', authenticate, (req, res) => {
-  try {
-    const { id } = req.params;
+// Post-Mortem Field Notes
+app.post(
+  '/api/cases/:id/notes',
+  authenticate,
+  writeLimiter,
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid case id' });
+    }
+
     const { content } = req.body;
-    if (!content || !content.trim()) {
+    if (!content || !String(content).trim()) {
       return res.status(400).json({ error: 'Note content is required' });
     }
 
-    const cases = readJsonFile('cases.json', []);
-    const idx = cases.findIndex((c) => c.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Case not found' });
+    const found = await Case.findById(req.params.id);
+    if (!found) return res.status(404).json({ error: 'Case not found' });
 
-    const newNote = {
+    const note = {
       id: `note-${Date.now()}`,
       author: req.user.username,
       role: req.user.role,
-      content: content.trim(),
+      content: String(content).trim().slice(0, 2000),
       createdAt: new Date().toISOString(),
     };
 
-    cases[idx].notes = cases[idx].notes || [];
-    cases[idx].notes.unshift(newNote);
-    writeJsonFile('cases.json', cases);
+    found.notes.unshift(note);
+    await found.save();
 
-    res.status(201).json(newNote);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add note' });
-  }
-});
+    res.status(201).json(note);
+  })
+);
 
-app.delete('/api/cases/:id/notes/:noteId', authenticate, (req, res) => {
-  try {
-    const { id, noteId } = req.params;
-    const cases = readJsonFile('cases.json', []);
-    const idx = cases.findIndex((c) => c.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Case not found' });
+app.delete(
+  '/api/cases/:id/notes/:noteId',
+  authenticate,
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid case id' });
+    }
 
-    const note = (cases[idx].notes || []).find((n) => n.id === noteId);
+    const found = await Case.findById(req.params.id);
+    if (!found) return res.status(404).json({ error: 'Case not found' });
+
+    const note = found.notes.find((n) => n.id === req.params.noteId);
     if (!note) return res.status(404).json({ error: 'Note not found' });
 
     if (note.author !== req.user.username && !['admin', 'architect'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to delete this note' });
     }
 
-    cases[idx].notes = (cases[idx].notes || []).filter((n) => n.id !== noteId);
-    writeJsonFile('cases.json', cases);
+    found.notes = found.notes.filter((n) => n.id !== req.params.noteId);
+    await found.save();
+
     res.json({ message: 'Note deleted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete note' });
-  }
-});
+  })
+);
 
 // ==========================================
-// 4. LEADERBOARD & SCORES CRUD
+// 4. LEADERBOARD & SCORES
 // ==========================================
 
-app.get('/api/leaderboard', (req, res) => {
-  try {
+app.get(
+  '/api/leaderboard',
+  ah(async (req, res) => {
     const { roomCode, difficulty } = req.query;
-    let scores = readJsonFile('leaderboard.json', []);
+    const query = {};
 
-    if (roomCode) {
-      scores = scores.filter((s) => (s.roomCode || '').toUpperCase() === String(roomCode).toUpperCase());
-    }
+    if (roomCode) query.roomCode = String(roomCode).toUpperCase();
     if (difficulty && difficulty !== 'All') {
-      scores = scores.filter((s) => s.difficulty.toLowerCase() === String(difficulty).toLowerCase());
+      // Anchored case-insensitive match. Previously this called
+      // .toLowerCase() on every row and threw a 500 if any row was missing
+      // the field; difficulty is now required by the schema as well.
+      query.difficulty = new RegExp(`^${escapeRegex(String(difficulty))}$`, 'i');
     }
 
-    scores.sort((a, b) => b.xp - a.xp || b.timeLeft - a.timeLeft);
-    res.json(scores.slice(0, 100));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch leaderboard' });
-  }
-});
+    const scores = await Score.find(query).sort({ xp: -1, timeLeft: -1 }).limit(100);
+    res.json(scores.map((s) => s.toJSON()));
+  })
+);
 
-app.post('/api/leaderboard', (req, res) => {
-  try {
-    const { userId, username, avatar, xp, difficulty, caseId, caseTitle, timeLeft, roomCode } = req.body;
-    if (!userId || !username || xp === undefined || !difficulty || timeLeft === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+/**
+ * Submitting a run now requires a valid session, and the identity is taken
+ * from the token rather than the request body. Previously this route was
+ * unauthenticated, so anyone could POST an arbitrary username with arbitrary
+ * XP and inflate that player's lifetime total.
+ */
+app.post(
+  '/api/leaderboard',
+  authenticate,
+  writeLimiter,
+  ah(async (req, res) => {
+    const { xp, difficulty, caseId, caseTitle, timeLeft, roomCode } = req.body;
+
+    if (xp === undefined || !difficulty || timeLeft === undefined) {
+      return res.status(400).json({ error: 'xp, difficulty and timeLeft are required' });
     }
 
-    const scores = readJsonFile('leaderboard.json', []);
-    const newEntry = {
-      id: `lb-${Date.now()}`,
-      userId,
-      username,
-      avatar: avatar || '🕵️‍♂️',
-      xp: Number(xp),
+    const xpNum = Number(xp);
+    const timeNum = Number(timeLeft);
+    if (!Number.isFinite(xpNum) || xpNum < 0 || xpNum > 100000) {
+      return res.status(400).json({ error: 'xp must be a number between 0 and 100000' });
+    }
+    if (!Number.isFinite(timeNum) || timeNum < 0) {
+      return res.status(400).json({ error: 'timeLeft must be a non-negative number' });
+    }
+
+    const entry = await Score.create({
+      userId: req.user._id,
+      username: req.user.username,
+      avatar: req.user.avatar,
+      xp: xpNum,
       difficulty,
-      caseId: caseId || `case-${difficulty.toLowerCase()}`,
+      caseId: caseId || null,
       caseTitle: caseTitle || `${difficulty} Assignment`,
-      timeLeft: Number(timeLeft),
+      timeLeft: timeNum,
       roomCode: roomCode || null,
       date: new Date().toISOString(),
-    };
+    });
 
-    scores.push(newEntry);
-    writeJsonFile('leaderboard.json', scores);
+    // Atomic increment: $inc avoids the read-modify-write race the old
+    // JSON store had, where two runs finishing together lost one update.
+    await User.updateOne(
+      { _id: req.user._id },
+      { $inc: { totalXp: xpNum, gamesPlayed: 1, victories: 1 } }
+    );
 
-    // Update user's aggregate XP and victories
-    const users = readJsonFile('users.json', []);
-    const uIdx = users.findIndex((u) => u.id === userId || u.username === username);
-    if (uIdx !== -1) {
-      users[uIdx].totalXp = (users[uIdx].totalXp || 0) + Number(xp);
-      users[uIdx].gamesPlayed = (users[uIdx].gamesPlayed || 0) + 1;
-      users[uIdx].victories = (users[uIdx].victories || 0) + 1;
-      writeJsonFile('users.json', users);
+    res.status(201).json(entry.toJSON());
+  })
+);
+
+app.delete(
+  '/api/leaderboard/:id',
+  authenticate,
+  authorizeRoles('admin', 'architect'),
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid score id' });
     }
 
-    res.status(201).json(newEntry);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save score' });
-  }
-});
+    const score = await Score.findById(req.params.id);
+    if (!score) return res.status(404).json({ error: 'Score entry not found' });
 
-app.delete('/api/leaderboard/:id', authenticate, authorizeRoles('admin', 'architect'), (req, res) => {
-  try {
-    const { id } = req.params;
-    const scores = readJsonFile('leaderboard.json', []);
-    const filtered = scores.filter((s) => s.id !== id);
-    if (filtered.length === scores.length) {
-      return res.status(404).json({ error: 'Score entry not found' });
-    }
-    writeJsonFile('leaderboard.json', filtered);
+    // Roll the player's aggregate back so moderation stays consistent.
+    await User.updateOne(
+      { _id: score.userId },
+      { $inc: { totalXp: -score.xp, gamesPlayed: -1, victories: -1 } }
+    );
+    await score.deleteOne();
+
     res.json({ message: 'Leaderboard entry purged' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete score' });
-  }
-});
+  })
+);
 
 // ==========================================
 // 5. LIVE EVENT ROOMS CRUD
 // ==========================================
 
-app.get('/api/rooms', (req, res) => {
-  const rooms = readJsonFile('rooms.json', []);
-  res.json(rooms);
-});
+app.get(
+  '/api/rooms',
+  ah(async (req, res) => {
+    const rooms = await Room.find().sort({ createdAt: -1 });
+    res.json(rooms.map((r) => r.toJSON()));
+  })
+);
 
-app.get('/api/rooms/:code', (req, res) => {
-  const rooms = readJsonFile('rooms.json', []);
-  const room = rooms.find((r) => r.code.toUpperCase() === req.params.code.toUpperCase());
-  if (!room) return res.status(404).json({ error: 'Room code not found' });
-  res.json(room);
-});
+app.get(
+  '/api/rooms/:code',
+  ah(async (req, res) => {
+    const room = await Room.findOne({ code: String(req.params.code).toUpperCase() });
+    if (!room) return res.status(404).json({ error: 'Room code not found' });
+    res.json(room.toJSON());
+  })
+);
 
-app.post('/api/rooms', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
+app.post(
+  '/api/rooms',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  writeLimiter,
+  ah(async (req, res) => {
     const { name, difficulty, code } = req.body;
     if (!name) return res.status(400).json({ error: 'Room name is required' });
 
-    const rooms = readJsonFile('rooms.json', []);
-    const roomCode = (code || `FD-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
-    if (rooms.some((r) => r.code.toUpperCase() === roomCode)) {
-      return res.status(400).json({ error: 'Room code already exists' });
+    const roomCode = String(code || `FD-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
+    if (await Room.findOne({ code: roomCode })) {
+      return res.status(409).json({ error: 'Room code already exists' });
     }
 
-    const newRoom = {
-      id: `room-${Date.now()}`,
+    const room = await Room.create({
       code: roomCode,
       name,
       hostName: req.user.username,
       difficulty: difficulty || 'All',
       isActive: true,
       createdAt: new Date().toISOString(),
-    };
+    });
 
-    rooms.unshift(newRoom);
-    writeJsonFile('rooms.json', rooms);
-    res.status(201).json(newRoom);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create room' });
-  }
-});
+    res.status(201).json(room.toJSON());
+  })
+);
 
-app.patch('/api/rooms/:id', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
-    const { id } = req.params;
+app.patch(
+  '/api/rooms/:id',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  writeLimiter,
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid room id' });
+    }
+
+    const room = await Room.findById(req.params.id);
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
     const { isActive, name, difficulty } = req.body;
-    const rooms = readJsonFile('rooms.json', []);
-    const idx = rooms.findIndex((r) => r.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Room not found' });
+    if (isActive !== undefined) room.isActive = Boolean(isActive);
+    if (name !== undefined) room.name = name;
+    if (difficulty !== undefined) room.difficulty = difficulty;
 
-    if (isActive !== undefined) rooms[idx].isActive = Boolean(isActive);
-    if (name !== undefined) rooms[idx].name = name;
-    if (difficulty !== undefined) rooms[idx].difficulty = difficulty;
+    await room.save();
+    res.json(room.toJSON());
+  })
+);
 
-    writeJsonFile('rooms.json', rooms);
-    res.json(rooms[idx]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update room' });
-  }
+app.delete(
+  '/api/rooms/:id',
+  authenticate,
+  authorizeRoles('architect', 'admin'),
+  ah(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid room id' });
+    }
+
+    // Previously returned success even when nothing matched.
+    const room = await Room.findById(req.params.id);
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    await room.deleteOne();
+    res.json({ message: 'Room deleted' });
+  })
+);
+
+// ==========================================
+// 404 + CENTRAL ERROR HANDLER
+// ==========================================
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Unknown /api/* paths return JSON, not Express's default HTML error page.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `No API route for ${req.method} ${req.originalUrl}` });
 });
 
-app.delete('/api/rooms/:id', authenticate, authorizeRoles('architect', 'admin'), (req, res) => {
-  try {
-    const { id } = req.params;
-    const rooms = readJsonFile('rooms.json', []);
-    const updated = rooms.filter((r) => r.id !== id);
-    writeJsonFile('rooms.json', updated);
-    res.json({ message: 'Room deleted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete room' });
+// Single error handler. Mongoose validation and duplicate-key errors are
+// translated to 400/409, and stack traces never reach the client.
+app.use((err, req, res, _next) => {
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Malformed JSON in request body' });
   }
+  if (err?.message?.includes('not allowed by CORS policy')) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+  if (err?.name === 'ValidationError') {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: Object.values(err.errors).map((e) => e.message),
+    });
+  }
+  if (err?.name === 'CastError') {
+    return res.status(400).json({ error: `Invalid value for ${err.path}` });
+  }
+  if (err?.code === 11000) {
+    return res.status(409).json({ error: 'A record with that unique value already exists' });
+  }
+
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`🕵️‍♂️ Frontend Detective Full-Stack Server running on http://localhost:${PORT}`);
-  });
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🕵️‍♂️ Frontend Detective API running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('❌ Could not start server:', err.message);
+      process.exit(1);
+    });
 }
 
 export default app;

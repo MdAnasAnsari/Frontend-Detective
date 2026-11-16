@@ -24,6 +24,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
   const { user, token } = useGameStore();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterDiff, setFilterDiff] = useState<string>('All');
 
@@ -31,34 +32,30 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
 
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        setEntries(data);
-        localStorage.setItem('detective_leaderboard', JSON.stringify(data));
-      } else {
-        throw new Error('Failed to fetch leaderboard');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
       }
-    } catch {
-      const local = localStorage.getItem('detective_leaderboard');
-      if (local) {
-        setEntries(JSON.parse(local));
-      } else {
-        setEntries([
-          { id: 'lb-1', username: 'GarvitBhutani', avatar: '🕵️‍♂️', xp: 1250, difficulty: 'Nightmare', timeLeft: 8, date: new Date().toISOString() },
-          { id: 'lb-2', username: 'CyberNinja', avatar: '🥷', xp: 950, difficulty: 'Hard', timeLeft: 12, date: new Date().toISOString() },
-          { id: 'lb-3', username: 'CodeSherlock', avatar: '🔎', xp: 750, difficulty: 'Medium', timeLeft: 22, date: new Date().toISOString() },
-          { id: 'lb-4', username: 'DemoMaster', avatar: '⚡', xp: 600, difficulty: 'Demo', timeLeft: 45, date: new Date().toISOString() },
-          { id: 'lb-5', username: 'PixelRookie', avatar: '👾', xp: 450, difficulty: 'Demo', timeLeft: 30, date: new Date().toISOString() },
-        ]);
-      }
+      setEntries(await res.json());
+    } catch (err) {
+      // The leaderboard is server state. With no cached or hardcoded
+      // fallback, an unreachable API is reported rather than disguised.
+      setEntries([]);
+      setError(
+        err instanceof Error
+          ? `Could not load the leaderboard: ${err.message}`
+          : 'Could not load the leaderboard.'
+      );
     } finally {
       setLoading(false);
     }
   }, []);
 
   const handleDeleteEntry = async (id: string) => {
+    setError(null);
     try {
       const res = await fetch(`/api/leaderboard/${id}`, {
         method: 'DELETE',
@@ -66,15 +63,14 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
           Authorization: `Bearer ${token}`,
         },
       });
-      if (res.ok) {
-        const updated = entries.filter((e) => e.id !== id);
-        setEntries(updated);
-        localStorage.setItem('detective_leaderboard', JSON.stringify(updated));
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
       }
-    } catch {
-      const updated = entries.filter((e) => e.id !== id);
-      setEntries(updated);
-      localStorage.setItem('detective_leaderboard', JSON.stringify(updated));
+      // Only remove the row locally once the server confirms the purge.
+      setEntries(entries.filter((e) => e.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? `Purge failed: ${err.message}` : 'Purge failed.');
     }
   };
 
@@ -133,6 +129,12 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg border border-red-500/40 bg-red-950/40 text-xs font-mono text-red-300">
+            {error}
+          </div>
+        )}
 
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 font-mono text-xs">

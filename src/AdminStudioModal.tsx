@@ -32,6 +32,7 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
 
   const [activeTab, setActiveTab] = useState<'cases' | 'rooms' | 'users' | 'analytics'>('cases');
   const [statusBanner, setStatusBanner] = useState<string>('');
+  const [bannerIsError, setBannerIsError] = useState(false);
 
   // --- CASES CRUD STATE ---
   const [selectedCaseId, setSelectedCaseId] = useState<string>(cases[0]?.id || 'case-demo');
@@ -53,35 +54,22 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   const fetchScores = useCallback(async () => {
     try {
       const res = await fetch('/api/leaderboard');
-      if (res.ok) setScores(await res.json());
-    } catch {
-      const saved = localStorage.getItem('detective_leaderboard');
-      if (saved) setScores(JSON.parse(saved));
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setScores(await res.json());
+    } catch (err) {
+      setScores([]);
+      console.error('Could not load telemetry', err);
     }
   }, []);
 
   const fetchRooms = useCallback(async () => {
     try {
       const res = await fetch('/api/rooms');
-      if (res.ok) {
-        setRooms(await res.json());
-      }
-    } catch {
-      const saved = localStorage.getItem('detective_rooms');
-      if (saved) setRooms(JSON.parse(saved));
-      else {
-        setRooms([
-          {
-            id: 'room-1',
-            code: 'FD-2026',
-            name: 'Global UI Bug Hunt Arena',
-            hostName: 'GarvitBhutani',
-            difficulty: 'All',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setRooms(await res.json());
+    } catch (err) {
+      setRooms([]);
+      console.error('Could not load rooms', err);
     }
   }, []);
 
@@ -90,50 +78,12 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
       const res = await fetch('/api/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        setAllUsers(await res.json());
-        return;
-      }
-      throw new Error('Fallback');
-    } catch {
-      setAllUsers([
-        {
-          id: 'usr-1',
-          username: 'GarvitBhutani',
-          email: 'garvit@frontenddetective.dev',
-          branch: 'CSE',
-          role: 'admin',
-          avatar: '🕵️‍♂️',
-          badge: 'Chief Inspector',
-          totalXp: 4800,
-          gamesPlayed: 12,
-          victories: 11,
-        },
-        {
-          id: 'usr-2',
-          username: 'CaseArchitect',
-          email: 'architect@frontenddetective.dev',
-          branch: 'AI & DS',
-          role: 'architect',
-          avatar: '⚡',
-          badge: 'Lead Case Architect',
-          totalXp: 3650,
-          gamesPlayed: 10,
-          victories: 8,
-        },
-        {
-          id: 'usr-3',
-          username: 'CodeSherlock',
-          email: 'sherlock@frontenddetective.dev',
-          branch: 'IT',
-          role: 'detective',
-          avatar: '🔎',
-          badge: 'Senior Field Detective',
-          totalXp: 2900,
-          gamesPlayed: 7,
-          victories: 6,
-        },
-      ]);
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setAllUsers(await res.json());
+    } catch (err) {
+      // No hardcoded roster: the RBAC console shows real accounts or none.
+      setAllUsers([]);
+      console.error('Could not load users', err);
     }
   }, [token]);
 
@@ -155,8 +105,25 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
   }, [selectedCaseId, cases, isCreatingNewCase]);
 
   const notify = (msg: string) => {
+    setBannerIsError(false);
     setStatusBanner(msg);
     setTimeout(() => setStatusBanner(''), 3500);
+  };
+
+  // Reports a failed API call. Admin actions must never claim success when
+  // the request did not reach the database.
+  const notifyError = (err: unknown, context: string) => {
+    const detail = err instanceof Error ? err.message : 'Request failed';
+    setBannerIsError(true);
+    setStatusBanner(`${context}: ${detail}`);
+    setTimeout(() => setStatusBanner(''), 6000);
+  };
+
+  // Turns a non-2xx response into an Error carrying the server's message.
+  const assertOk = async (res: Response) => {
+    if (res.ok) return res;
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
   };
 
   // --- ROOMS API ---
@@ -173,31 +140,13 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
         },
         body: JSON.stringify({ name: newRoomName, difficulty: newRoomDiff }),
       });
-      if (res.ok) {
-        const created = await res.json();
-        const next = [created, ...rooms];
-        setRooms(next);
-        localStorage.setItem('detective_rooms', JSON.stringify(next));
-        setNewRoomName('');
-        notify(`Room ${created.code} created!`);
-        return;
-      }
-      throw new Error('Fallback');
-    } catch {
-      const fallbackRoom = {
-        id: `room-${Date.now()}`,
-        code: `FD-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: newRoomName,
-        hostName: user?.username || 'Architect',
-        difficulty: newRoomDiff,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-      const next = [fallbackRoom, ...rooms];
-      setRooms(next);
-      localStorage.setItem('detective_rooms', JSON.stringify(next));
+      await assertOk(res);
+      const created = await res.json();
+      setRooms([created, ...rooms]);
       setNewRoomName('');
-      notify(`Room ${fallbackRoom.code} created!`);
+      notify(`Room ${created.code} created!`);
+    } catch (err) {
+      notifyError(err, 'Could not create room');
     }
   };
 
@@ -211,32 +160,26 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
         },
         body: JSON.stringify({ isActive: !room.isActive }),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setRooms(rooms.map((r) => (r.id === room.id ? updated : r)));
-        return;
-      }
-    } catch {
-      // fallback
+      await assertOk(res);
+      const updated = await res.json();
+      setRooms(rooms.map((r) => (r.id === room.id ? updated : r)));
+    } catch (err) {
+      notifyError(err, 'Could not update room');
     }
-    const next = rooms.map((r) => (r.id === room.id ? { ...r, isActive: !r.isActive } : r));
-    setRooms(next);
-    localStorage.setItem('detective_rooms', JSON.stringify(next));
   };
 
   const handleDeleteRoom = async (id: string) => {
     try {
-      await fetch(`/api/rooms/${id}`, {
+      const res = await fetch(`/api/rooms/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {
-      // fallback
+      await assertOk(res);
+      setRooms(rooms.filter((r) => r.id !== id));
+      notify('Room deleted.');
+    } catch (err) {
+      notifyError(err, 'Could not delete room');
     }
-    const next = rooms.filter((r) => r.id !== id);
-    setRooms(next);
-    localStorage.setItem('detective_rooms', JSON.stringify(next));
-    notify('Room deleted.');
   };
 
   // --- USERS RBAC API ---
@@ -251,17 +194,14 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
         },
         body: JSON.stringify({ role: newRole, badge: newBadge }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setAllUsers(allUsers.map((u) => (u.id === targetUser.id ? data.user : u)));
-        notify(`Updated ${targetUser.username} to ${newRole.toUpperCase()}`);
-        return;
-      }
-    } catch {
-      // fallback
+      await assertOk(res);
+      const data = await res.json();
+      setAllUsers(allUsers.map((u) => (u.id === targetUser.id ? data.user : u)));
+      notify(`Updated ${targetUser.username} to ${newRole.toUpperCase()}`);
+    } catch (err) {
+      // A role change that the server rejected must not be shown as applied.
+      notifyError(err, `Could not update ${targetUser.username}`);
     }
-    setAllUsers(allUsers.map((u) => (u.id === targetUser.id ? { ...u, role: newRole, badge: newBadge } : u)));
-    notify(`Updated ${targetUser.username} to ${newRole.toUpperCase()}`);
   };
 
   const handleDeleteUser = async (targetId: string) => {
@@ -270,15 +210,16 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
       return;
     }
     try {
-      await fetch(`/api/users/${targetId}`, {
+      const res = await fetch(`/api/users/${targetId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {
-      // fallback
+      await assertOk(res);
+      setAllUsers(allUsers.filter((u) => u.id !== targetId));
+      notify('Agent removed from system.');
+    } catch (err) {
+      notifyError(err, 'Could not delete agent');
     }
-    setAllUsers(allUsers.filter((u) => u.id !== targetId));
-    notify('Agent removed from system.');
   };
 
   // --- CASES CRUD HANDLERS ---
@@ -320,14 +261,12 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
           },
           body: JSON.stringify(editingCase),
         });
-        if (res.ok) {
-          const created = await res.json();
-          setCases([...cases, created]);
-          setSelectedCaseId(created.id);
-          setIsCreatingNewCase(false);
-          notify(`Created new case: ${created.title}`);
-          return;
-        }
+        await assertOk(res);
+        const created = await res.json();
+        setCases([...cases, created]);
+        setSelectedCaseId(created.id);
+        setIsCreatingNewCase(false);
+        notify(`Created new case: ${created.title}`);
       } else {
         const res = await fetch(`/api/cases/${editingCase.id}`, {
           method: 'PUT',
@@ -337,24 +276,16 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
           },
           body: JSON.stringify(editingCase),
         });
-        if (res.ok) {
-          const updated = await res.json();
-          setCases(cases.map((c) => (c.id === updated.id ? updated : c)));
-          notify(`Saved changes to: ${updated.title}`);
-          return;
-        }
+        await assertOk(res);
+        const updated = await res.json();
+        setCases(cases.map((c) => (c.id === updated.id ? updated : c)));
+        notify(`Saved changes to: ${updated.title}`);
       }
-      throw new Error('Fallback');
-    } catch {
-      if (isCreatingNewCase) {
-        setCases([...cases, editingCase]);
-        setSelectedCaseId(editingCase.id);
-        setIsCreatingNewCase(false);
-        notify(`Created new case locally: ${editingCase.title}`);
-      } else {
-        setCases(cases.map((c) => (c.id === editingCase.id ? editingCase : c)));
-        notify(`Saved changes to: ${editingCase.title}`);
-      }
+    } catch (err) {
+      // Previously this said "Created new case locally" and kept the case in
+      // React state only, so an architect could build a whole mission that
+      // never existed server-side.
+      notifyError(err, 'Could not save case');
     }
   };
 
@@ -364,18 +295,19 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
       return;
     }
     try {
-      await fetch(`/api/cases/${id}`, {
+      const res = await fetch(`/api/cases/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {
-      // fallback
+      await assertOk(res);
+      const remaining = cases.filter((c) => c.id !== id);
+      setCases(remaining);
+      setSelectedCaseId(remaining[0].id);
+      setIsCreatingNewCase(false);
+      notify('Case deleted.');
+    } catch (err) {
+      notifyError(err, 'Could not delete case');
     }
-    const remaining = cases.filter((c) => c.id !== id);
-    setCases(remaining);
-    setSelectedCaseId(remaining[0].id);
-    setIsCreatingNewCase(false);
-    notify('Case deleted.');
   };
 
   if (!isOpen || !isArchitectOrAdmin) return null;
@@ -464,7 +396,13 @@ export default function AdminStudioModal({ isOpen, onClose, onOpenHostScreen }: 
         </div>
 
         {statusBanner && (
-          <div className="bg-emerald-500/15 border-b border-emerald-500/40 text-emerald-300 px-6 py-2 text-xs font-mono flex items-center space-x-2">
+          <div
+            className={`border-b px-6 py-2 text-xs font-mono flex items-center space-x-2 ${
+              bannerIsError
+                ? 'bg-red-500/15 border-red-500/40 text-red-300'
+                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+            }`}
+          >
             <CheckCircle2 className="w-4 h-4" />
             <span>{statusBanner}</span>
           </div>

@@ -79,6 +79,8 @@ interface GameState {
   validateAuth: () => Promise<void>;
   setActiveRoomCode: (code: string | null) => void;
 
+  casesError: string | null;
+  apiOffline: boolean;
   fetchCases: () => Promise<void>;
   setCases: (cases: CaseDefinition[]) => void;
   startGame: (target: Difficulty | CaseDefinition) => void;
@@ -88,85 +90,6 @@ interface GameState {
   resetGame: () => void;
   triggerHint: () => void;
 }
-
-export const DEFAULT_CASES: CaseDefinition[] = [
-  {
-    id: 'case-demo',
-    title: 'SaaS Landing Page Audit',
-    difficulty: 'Demo',
-    layoutType: 'SaaS',
-    roleTitle: 'Junior UI Detective (Introductory)',
-    timeLimit: 60,
-    attemptsLimit: 10,
-    author: 'GarvitBhutani',
-    isOfficial: true,
-    errors: [
-      { id: 'err-1', description: 'Uneven button padding', category: 'Spacing', points: 100, errorClass: 'px-2 py-4', fixedClass: 'px-6 py-3', explanation: 'Horizontal padding (px-2) was narrower than vertical padding (py-4), violating 2:1 button aspect ratios.' },
-      { id: 'err-2', description: 'Misaligned icon container', category: 'Alignment', points: 100, errorClass: '-mt-2', fixedClass: 'mt-0', explanation: 'Negative top margin (-mt-2) pulled the icon out of its card baseline.' },
-      { id: 'err-3', description: 'Different border radius on one card', category: 'Border', points: 100, errorClass: 'rounded-sm', fixedClass: 'rounded-2xl', explanation: 'Card #2 used rounded-sm while sibling cards used consistent framing.' },
-      { id: 'err-4', description: 'Incorrect font weight in heading', category: 'Typography', points: 100, errorClass: 'font-light', fixedClass: 'font-bold', explanation: 'Hero display headings require font-bold to maintain visual hierarchy.' },
-      { id: 'err-5', description: 'Wrong secondary button color', category: 'Color', points: 100, errorClass: 'bg-blue-400', fixedClass: 'bg-blue-600', explanation: 'Low-contrast fill clashed with the ghost button border.' },
-    ],
-    notes: [],
-  },
-  {
-    id: 'case-medium',
-    title: 'Neural E-Commerce Product Render',
-    difficulty: 'Medium',
-    layoutType: 'Ecommerce',
-    roleTitle: 'Mid-Level Frontend Engineer',
-    timeLimit: 45,
-    attemptsLimit: 10,
-    author: 'GarvitBhutani',
-    isOfficial: true,
-    errors: [
-      { id: 'med-err-1', description: 'Incorrect flex direction', category: 'Layout', points: 150, errorClass: 'flex-row', fixedClass: 'flex-col md:flex-row', explanation: 'Responsive stacking (flex-col md:flex-row) prevents narrow viewport overflow.' },
-      { id: 'med-err-2', description: 'Missing hover transition', category: 'Interaction', points: 150, errorClass: 'transition-none', fixedClass: 'transition-all duration-300', explanation: 'Interactive CTAs require smooth state transitions.' },
-      { id: 'med-err-3', description: 'Inconsistent typography tracking', category: 'Typography', points: 150, errorClass: 'tracking-tight', fixedClass: 'tracking-widest', explanation: 'Uppercase display headers require wider letter-spacing.' },
-      { id: 'med-err-4', description: 'Z-index clipping issue', category: 'Stacking', points: 150, errorClass: 'z-0', fixedClass: 'z-50', explanation: 'Rating stars were occluded by background glow layers.' },
-      { id: 'med-err-5', description: 'Broken gradient stop', category: 'Color', points: 150, errorClass: 'to-transparent', fixedClass: 'to-[#10b981]', explanation: 'Missing terminal color stop caused uneven button background rendering.' },
-    ],
-    notes: [],
-  },
-  {
-    id: 'case-hard',
-    title: 'Nexus Telemetry Analytics Dashboard',
-    difficulty: 'Hard',
-    layoutType: 'Analytics',
-    roleTitle: 'Senior Frontend Architect',
-    timeLimit: 30,
-    attemptsLimit: 10,
-    author: 'CaseArchitect',
-    isOfficial: true,
-    errors: [
-      { id: 'hard-err-1', description: 'Improper semantic state color', category: 'Theming', points: 200, errorClass: 'bg-red-500/10 text-red-500', fixedClass: 'bg-emerald-500/10 text-emerald-500', explanation: 'Destructive red alert classes leaked onto the primary navigation sidebar.' },
-      { id: 'hard-err-2', description: 'Unoptimized rendering blur', category: 'Rendering', points: 200, errorClass: 'opacity-50 blur-sm', fixedClass: 'opacity-100 blur-none', explanation: 'Stale skeleton blur filter remained active on the chart container.' },
-      { id: 'hard-err-3', description: 'Contrast ratio accessibility failure', category: 'Accessibility', points: 200, errorClass: 'text-slate-600 bg-slate-700', fixedClass: 'text-white bg-slate-900', explanation: 'Slate-600 on Slate-700 fails WCAG AA minimum 4.5:1 contrast ratio.' },
-      { id: 'hard-err-4', description: 'Missing focus ring outline', category: 'Accessibility', points: 200, errorClass: 'outline-none', fixedClass: 'ring-2 ring-[#f59e0b]', explanation: 'Removing outline without a focus ring breaks keyboard accessibility.' },
-      { id: 'hard-err-5', description: 'Incorrect box-sizing model', category: 'Box Model', points: 200, errorClass: 'box-content', fixedClass: 'box-border', explanation: 'box-content caused padding and border to overflow the fixed width.' },
-    ],
-    notes: [],
-  },
-  {
-    id: 'case-nightmare',
-    title: 'Root Kernel Preferences Override',
-    difficulty: 'Nightmare',
-    layoutType: 'Settings',
-    roleTitle: 'Principal Staff Engineer',
-    timeLimit: 20,
-    attemptsLimit: 10,
-    author: 'GarvitBhutani',
-    isOfficial: true,
-    errors: [
-      { id: 'night-err-1', description: 'Runaway animation in avatar state', category: 'Animation', points: 500, errorClass: 'animate-bounce text-red-500', fixedClass: 'animate-none text-[#10b981]', explanation: 'Infinite bounce keyframe on avatar triggers continuous layout thrashing.' },
-      { id: 'night-err-2', description: 'Oversized GPU shadow bleed', category: 'Performance', points: 500, errorClass: 'shadow-[0_0_100px_red]', fixedClass: 'shadow-[0_0_15px_#6366f1]', explanation: '100px red shadow bleeds across adjacent DOM nodes.' },
-      { id: 'night-err-3', description: 'Corrupted micro-typography kerning', category: 'Typography', points: 500, errorClass: 'text-[8px] tracking-[1rem]', fixedClass: 'text-sm tracking-normal', explanation: '8px font with 1rem tracking renders label text illegible.' },
-      { id: 'night-err-4', description: 'Inverted transform matrix', category: 'Transform', points: 500, errorClass: 'rotate-180 scale-50', fixedClass: 'rotate-0 scale-100', explanation: '180deg rotation and 50% scale broke button usability.' },
-      { id: 'night-err-5', description: 'Ghost DOM node (opacity-0)', category: 'Visibility', points: 500, errorClass: 'opacity-0 pointer-events-none', fixedClass: 'opacity-100 pointer-events-auto', explanation: 'Hidden preference row still occupied layout space while blocking interaction.' },
-    ],
-    notes: [],
-  },
-];
 
 const savedToken = localStorage.getItem('detective_token');
 const savedUserStr = localStorage.getItem('detective_user');
@@ -184,8 +107,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   combo: 0,
   difficulty: 'Demo',
   layoutType: 'SaaS',
-  activeCase: DEFAULT_CASES[0],
-  cases: DEFAULT_CASES,
+  activeCase: null,
+  cases: [],
   errors: [],
   hintsLeft: 1,
   hintTargetId: null,
@@ -193,6 +116,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   user: savedUser,
   token: savedToken,
+  casesError: null,
+  apiOffline: false,
 
   setUser: (user) => {
     if (user) {
@@ -229,11 +154,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (data.user) {
           setUser(data.user);
         }
+        set({ apiOffline: false });
       } else if (res.status === 401) {
         logout();
       }
     } catch {
-      // Server offline; keep local fallback session
+      // The session is kept across a transient network error (any action will
+      // still fail server-side), but the offline state is recorded rather
+      // than swallowed, so the UI can say so.
+      set({ apiOffline: true });
     }
   },
 
@@ -244,14 +173,28 @@ export const useGameStore = create<GameState>((set, get) => ({
   fetchCases: async () => {
     try {
       const res = await fetch('/api/cases');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          set({ cases: data });
-        }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
       }
-    } catch {
-      // Fallback to DEFAULT_CASES already in state
+      const data = await res.json();
+      set({
+        cases: Array.isArray(data) ? data : [],
+        casesError: null,
+        apiOffline: false,
+      });
+    } catch (err) {
+      // Cases are server data. There is no local catalogue to fall back to,
+      // so an unreachable API shows an error instead of a playable game that
+      // looks backed by a database but is not.
+      set({
+        cases: [],
+        casesError:
+          err instanceof Error
+            ? `Could not load cases from the server: ${err.message}`
+            : 'Could not load cases from the server.',
+        apiOffline: true,
+      });
     }
   },
 
@@ -259,15 +202,20 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startGame: (target) => {
     const { cases } = get();
-    let chosenCase: CaseDefinition;
+    let chosenCase: CaseDefinition | undefined;
 
     if (typeof target === 'string') {
-      chosenCase =
-        cases.find((c) => c.difficulty === target) ||
-        DEFAULT_CASES.find((c) => c.difficulty === target) ||
-        DEFAULT_CASES[0];
+      chosenCase = cases.find((c) => c.difficulty === target);
     } else {
       chosenCase = target;
+    }
+
+    // Refuse to start rather than substituting a hardcoded case.
+    if (!chosenCase) {
+      set({
+        casesError: `No "${String(target)}" case is available from the server. Load cases first.`,
+      });
+      return;
     }
 
     set({
@@ -284,6 +232,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       errors: chosenCase.errors.map((e) => ({ ...e, fixed: false })),
       hintsLeft: 1,
       hintTargetId: null,
+      casesError: null,
     });
   },
 

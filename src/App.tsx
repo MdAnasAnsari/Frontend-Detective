@@ -621,7 +621,7 @@ function StartScreen({
   onOpenHost: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
-  const { user, cases, fetchCases, activeRoomCode, setActiveRoomCode } = useGameStore();
+  const { user, cases, fetchCases, casesError, activeRoomCode, setActiveRoomCode } = useGameStore();
   const [roomInput, setRoomInput] = useState(activeRoomCode || '');
   const [roomBanner, setRoomBanner] = useState('');
 
@@ -958,6 +958,26 @@ function StartScreen({
             </form>
           </div>
 
+          {casesError && (
+            <div className="w-full px-6 py-5 border-t-[3px] border-red-500/30 bg-red-50 text-red-700">
+              <div className="font-bold uppercase text-sm tracking-wider mb-1">Case files unavailable</div>
+              <div className="text-xs font-mono">{casesError}</div>
+              <button
+                type="button"
+                onClick={() => fetchCases()}
+                className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase rounded-lg"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!casesError && cases.length === 0 && (
+            <div className="w-full px-6 py-5 border-t-[3px] border-slate-900/10 text-xs font-mono text-slate-500">
+              Loading case files from the server...
+            </div>
+          )}
+
           <div className="flex flex-col w-full border-t-[3px] border-slate-900/10">
             {cases.map((caseItem, i) => {
               const colorPalette = {
@@ -1049,6 +1069,7 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
 
   const [showPostMortem, setShowPostMortem] = useState(false);
   const [noteInput, setNoteInput] = useState('');
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [notes, setNotes] = useState<CaseNote[]>(activeCase?.notes || []);
   const scoreSubmittedRef = useRef(false);
 
@@ -1059,15 +1080,15 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
   useEffect(() => {
     if (isVictory && user && !scoreSubmittedRef.current) {
       scoreSubmittedRef.current = true;
+      // Identity (userId / username / avatar) is derived server-side from the
+      // bearer token, so it can no longer be spoofed from the client.
       fetch('/api/leaderboard', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: user.id,
-          username: user.username,
-          avatar: user.avatar,
           xp,
           difficulty,
           caseId: activeCase?.id,
@@ -1075,9 +1096,17 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
           roomCode: activeRoomCode,
           timeLeft,
         }),
-      }).catch((err) => console.error('Failed to submit score', err));
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Score submit failed (${res.status})`);
+          setSyncError(null);
+        })
+        .catch((err) => {
+          console.error('Failed to submit score', err);
+          setSyncError('Your run could not be saved to the leaderboard. Check that the server is running.');
+        });
     }
-  }, [xp, difficulty, timeLeft, isVictory, user, activeCase, activeRoomCode]);
+  }, [xp, difficulty, timeLeft, isVictory, user, token, activeCase, activeRoomCode]);
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1092,43 +1121,42 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
         },
         body: JSON.stringify({ content: noteInput.trim() }),
       });
-      if (res.ok) {
-        const createdNote = await res.json();
-        const updatedNotes = [createdNote, ...notes];
-        setNotes(updatedNotes);
-        setCases(cases.map((c) => (c.id === activeCase.id ? { ...c, notes: updatedNotes } : c)));
-        setNoteInput('');
-        return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
       }
-      throw new Error('Fallback');
-    } catch {
-      const fallbackNote: CaseNote = {
-        id: `note-${Date.now()}`,
-        author: user.username,
-        role: user.role,
-        content: noteInput.trim(),
-        createdAt: new Date().toISOString(),
-      };
-      const updatedNotes = [fallbackNote, ...notes];
+      const createdNote = await res.json();
+      const updatedNotes = [createdNote, ...notes];
       setNotes(updatedNotes);
       setCases(cases.map((c) => (c.id === activeCase.id ? { ...c, notes: updatedNotes } : c)));
       setNoteInput('');
+      setSyncError(null);
+    } catch (err) {
+      // No local fallback: a note that never reached the database must not
+      // appear in the UI as though it had been saved.
+      setSyncError(err instanceof Error ? err.message : 'Could not post field note.');
     }
   };
 
   const handleDeleteNote = async (noteId: string) => {
     if (!activeCase) return;
     try {
-      await fetch(`/api/cases/${activeCase.id}/notes/${noteId}`, {
+      const res = await fetch(`/api/cases/${activeCase.id}/notes/${noteId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {
-      // fallback
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed (${res.status})`);
+      }
+      // Only drop it from the UI once the server confirms the delete.
+      const updatedNotes = notes.filter((n) => n.id !== noteId);
+      setNotes(updatedNotes);
+      setCases(cases.map((c) => (c.id === activeCase.id ? { ...c, notes: updatedNotes } : c)));
+      setSyncError(null);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : 'Could not delete field note.');
     }
-    const updatedNotes = notes.filter((n) => n.id !== noteId);
-    setNotes(updatedNotes);
-    setCases(cases.map((c) => (c.id === activeCase.id ? { ...c, notes: updatedNotes } : c)));
   };
 
   return (
@@ -1216,6 +1244,12 @@ function EndScreen({ isVictory }: { isVictory: boolean }) {
                   <MessageSquarePlus className="w-4 h-4" />
                   <span>Detective Field Notes ({notes.length})</span>
                 </div>
+
+                {syncError && (
+                  <div className="mb-3 px-3 py-2 rounded-lg border border-red-500/40 bg-red-950/40 text-[11px] text-red-300">
+                    {syncError}
+                  </div>
+                )}
 
                 {user && (
                   <form onSubmit={handleAddNote} className="flex space-x-2 mb-3">
